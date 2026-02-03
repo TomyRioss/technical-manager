@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LuPlus, LuTrash2, LuSearch, LuEye } from "react-icons/lu";
+import { formatPrice } from "@/lib/utils";
 
 export default function RecibosPage() {
   const { receipts, deleteReceipt } = useDashboard();
@@ -93,13 +94,13 @@ export default function RecibosPage() {
                     {receipt.items.length}
                   </TableCell>
                   <TableCell className="text-right">
-                    ${receipt.subtotal.toFixed(2)}
+                    ${formatPrice(receipt.subtotal)}
                   </TableCell>
                   <TableCell className="text-right text-neutral-500">
-                    ${receipt.commissionAmount.toFixed(2)}
+                    ${formatPrice(receipt.commissionAmount)}
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    ${receipt.total.toFixed(2)}
+                    ${formatPrice(receipt.total)}
                   </TableCell>
                   <TableCell>
                     <Badge

@@ -6,7 +6,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const item = await prisma.item.findUnique({ where: { id } });
+  const item = await prisma.item.findFirst({
+    where: { id, isActive: true },
+    include: { category: { select: { id: true, name: true } } } as any,
+  });
   if (!item) {
     return NextResponse.json({ error: "Item no encontrado" }, { status: 404 });
   }
@@ -19,7 +22,7 @@ export async function PUT(
 ) {
   const { id } = await params;
   const body = await req.json();
-  const { name, sku, salePrice, stock, isActive } = body;
+  const { name, sku, salePrice, stock, isActive, categoryId } = body;
 
   const item = await prisma.item.update({
     where: { id },
@@ -29,7 +32,9 @@ export async function PUT(
       ...(salePrice !== undefined && { salePrice }),
       ...(stock !== undefined && { stock }),
       ...(isActive !== undefined && { isActive }),
-    },
+      ...(categoryId !== undefined && { categoryId: categoryId || null }),
+    } as any,
+    include: { category: { select: { id: true, name: true } } } as any,
   });
 
   return NextResponse.json(item);
@@ -40,6 +45,6 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  await prisma.item.delete({ where: { id } });
+  await prisma.item.update({ where: { id }, data: { isActive: false } });
   return NextResponse.json({ ok: true });
 }

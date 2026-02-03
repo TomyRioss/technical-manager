@@ -10,8 +10,21 @@ import {
 } from "react";
 import type { Product } from "@/types/product";
 import type { Receipt } from "@/types/receipt";
+import type { WorkOrder } from "@/types/work-order";
+import type { UserRole } from "@/lib/auth-check";
+
+interface CommissionConfig {
+  paymentMethod: string;
+  commissionRate: number;
+}
 
 interface DashboardContextType {
+  storeId: string;
+  storeName: string;
+  storeSlug: string;
+  userId: string;
+  userRole: UserRole;
+
   products: Product[];
   addProduct: (product: Omit<Product, "id">) => Promise<string | null>;
   updateProduct: (id: string, product: Omit<Product, "id">) => Promise<void>;
@@ -24,6 +37,12 @@ interface DashboardContextType {
   deleteReceipt: (id: string) => Promise<void>;
   getReceipt: (id: string) => Receipt | undefined;
 
+  workOrders: WorkOrder[];
+
+  commissions: CommissionConfig[];
+  updateCommissions: (commissions: CommissionConfig[]) => Promise<void>;
+  getCommissionRate: (paymentMethod: string) => number;
+
   loading: boolean;
 }
 
@@ -32,12 +51,17 @@ const DashboardContext = createContext<DashboardContextType | null>(null);
 interface DashboardProviderProps {
   children: ReactNode;
   storeId: string;
+  storeName: string;
+  storeSlug: string;
   userId: string;
+  userRole: UserRole;
 }
 
-export function DashboardProvider({ children, storeId, userId }: DashboardProviderProps) {
+export function DashboardProvider({ children, storeId, storeName, storeSlug, userId, userRole }: DashboardProviderProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [commissions, setCommissions] = useState<CommissionConfig[]>([]);
   const [loading, setLoading] = useState(true);
 
   // --- Fetch initial data ---
@@ -47,14 +71,20 @@ export function DashboardProvider({ children, storeId, userId }: DashboardProvid
     if (!res.ok) return;
     const items = await res.json();
     setProducts(
-      items.map((i: Record<string, unknown>) => ({
-        id: i.id,
-        name: i.name,
-        sku: i.sku,
-        price: i.salePrice,
-        stock: i.stock,
-        active: i.isActive,
-      }))
+      items.map((i: Record<string, unknown>) => {
+        const cat = i.category as { id: string; name: string } | null;
+        return {
+          id: i.id as string,
+          name: i.name as string,
+          sku: i.sku as string,
+          price: i.salePrice as number,
+          stock: i.stock as number,
+          active: i.isActive as boolean,
+          imageUrl: (i.imageUrl as string) || undefined,
+          categoryId: cat?.id || undefined,
+          categoryName: cat?.name || undefined,
+        };
+      })
     );
   }, [storeId]);
 
@@ -70,14 +100,28 @@ export function DashboardProvider({ children, storeId, userId }: DashboardProvid
     );
   }, [storeId]);
 
+  const fetchWorkOrders = useCallback(async () => {
+    const res = await fetch(`/api/work-orders?storeId=${storeId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    setWorkOrders(data);
+  }, [storeId]);
+
+  const fetchCommissions = useCallback(async () => {
+    const res = await fetch(`/api/commissions?storeId=${storeId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    setCommissions(data);
+  }, [storeId]);
+
   useEffect(() => {
     async function load() {
       setLoading(true);
-      await Promise.all([fetchProducts(), fetchReceipts()]);
+      await Promise.all([fetchProducts(), fetchReceipts(), fetchWorkOrders(), fetchCommissions()]);
       setLoading(false);
     }
     load();
-  }, [fetchProducts, fetchReceipts]);
+  }, [fetchProducts, fetchReceipts, fetchWorkOrders, fetchCommissions]);
 
   // --- Products ---
 
@@ -92,10 +136,12 @@ export function DashboardProvider({ children, storeId, userId }: DashboardProvid
         stock: data.stock,
         isActive: data.active,
         storeId,
+        categoryId: data.categoryId || null,
       }),
     });
     if (!res.ok) return null;
     const item = await res.json();
+    const cat = item.category as { id: string; name: string } | null;
     setProducts((prev) => [
       {
         id: item.id,
@@ -105,6 +151,8 @@ export function DashboardProvider({ children, storeId, userId }: DashboardProvid
         stock: item.stock,
         active: item.isActive,
         imageUrl: data.imageUrl,
+        categoryId: cat?.id || undefined,
+        categoryName: cat?.name || undefined,
       },
       ...prev,
     ]);
@@ -121,10 +169,12 @@ export function DashboardProvider({ children, storeId, userId }: DashboardProvid
         salePrice: data.price,
         stock: data.stock,
         isActive: data.active,
+        categoryId: data.categoryId || null,
       }),
     });
     if (!res.ok) return;
     const item = await res.json();
+    const cat = item.category as { id: string; name: string } | null;
     setProducts((prev) =>
       prev.map((p) =>
         p.id === id
@@ -136,6 +186,8 @@ export function DashboardProvider({ children, storeId, userId }: DashboardProvid
               stock: item.stock,
               active: item.isActive,
               imageUrl: data.imageUrl ?? p.imageUrl,
+              categoryId: cat?.id || undefined,
+              categoryName: cat?.name || undefined,
             }
           : p
       )
@@ -156,6 +208,32 @@ export function DashboardProvider({ children, storeId, userId }: DashboardProvid
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, imageUrl } : p))
     );
+  }
+
+  // --- Commissions ---
+
+  const paymentMethodToEnum: Record<string, string> = {
+    "Efectivo": "CASH",
+    "Transferencia Debito": "DEBIT_TRANSFER",
+    "Transferencia Credito": "CREDIT_TRANSFER",
+    "Otro": "OTHER",
+  };
+
+  async function updateCommissions(updated: CommissionConfig[]) {
+    const res = await fetch("/api/commissions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ storeId, commissions: updated }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    setCommissions(data);
+  }
+
+  function getCommissionRate(paymentMethod: string): number {
+    const enumVal = paymentMethodToEnum[paymentMethod] || paymentMethod;
+    const found = commissions.find((c) => c.paymentMethod === enumVal);
+    return found?.commissionRate ?? 0;
   }
 
   // --- Receipts ---
@@ -208,6 +286,11 @@ export function DashboardProvider({ children, storeId, userId }: DashboardProvid
   return (
     <DashboardContext.Provider
       value={{
+        storeId,
+        storeName,
+        storeSlug,
+        userId,
+        userRole,
         products,
         addProduct,
         updateProduct,
@@ -218,6 +301,10 @@ export function DashboardProvider({ children, storeId, userId }: DashboardProvid
         addReceipt,
         deleteReceipt,
         getReceipt,
+        workOrders,
+        commissions,
+        updateCommissions,
+        getCommissionRate,
         loading,
       }}
     >

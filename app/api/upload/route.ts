@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { prisma } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
@@ -29,6 +30,13 @@ export async function POST(req: NextRequest) {
   const { data: publicUrlData } = supabase.storage
     .from("products")
     .getPublicUrl(fileName);
+
+  if (itemId) {
+    await prisma.item.update({
+      where: { id: itemId },
+      data: { imageUrl: publicUrlData.publicUrl },
+    });
+  }
 
   return NextResponse.json({ url: publicUrlData.publicUrl });
 }

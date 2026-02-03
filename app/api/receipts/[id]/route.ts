@@ -4,8 +4,8 @@ import type { PaymentMethod, ReceiptStatus } from "@/lib/generated/prisma";
 
 const paymentMethodReverseMap: Record<PaymentMethod, string> = {
   CASH: "Efectivo",
-  POSNET: "Posnet",
-  TRANSFER: "Transferencia",
+  DEBIT_TRANSFER: "Transferencia Debito",
+  CREDIT_TRANSFER: "Transferencia Credito",
   OTHER: "Otro",
 };
 
@@ -21,8 +21,8 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const receipt = await prisma.receipt.findUnique({
-    where: { id },
+  const receipt = await prisma.receipt.findFirst({
+    where: { id, isActive: true },
     include: { items: { include: { item: true } } },
   });
 
@@ -59,6 +59,6 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  await prisma.receipt.delete({ where: { id } });
+  await prisma.receipt.update({ where: { id }, data: { isActive: false } });
   return NextResponse.json({ ok: true });
 }

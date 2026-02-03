@@ -7,6 +7,7 @@ import type { Product } from "@/types/product";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CategorySelect } from "@/components/ui/category-select";
 import { LuArrowLeft, LuUpload } from "react-icons/lu";
 import Link from "next/link";
 
@@ -16,13 +17,14 @@ const emptyProduct: Omit<Product, "id"> = {
   price: 0,
   stock: 0,
   active: true,
+  categoryId: undefined,
 };
 
 export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
-  const { getProduct, updateProduct, setProductImage } = useDashboard();
+  const { storeId, getProduct, updateProduct, setProductImage } = useDashboard();
 
   const [form, setForm] = useState<Omit<Product, "id">>(emptyProduct);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -42,6 +44,7 @@ export default function EditProductPage() {
       price: product.price,
       stock: product.stock,
       active: product.active,
+      categoryId: product.categoryId,
     });
     setImagePreview(product.imageUrl || null);
   }, [id, getProduct]);
@@ -156,7 +159,7 @@ export default function EditProductPage() {
 
         {/* SKU */}
         <div className="space-y-2">
-          <Label htmlFor="sku">SKU / Código</Label>
+          <Label htmlFor="sku">SKU / Codigo</Label>
           <Input
             id="sku"
             value={form.sku}
@@ -164,6 +167,16 @@ export default function EditProductPage() {
               setForm((f) => ({ ...f, sku: e.target.value }))
             }
             placeholder="ABC-001"
+          />
+        </div>
+
+        {/* Category */}
+        <div className="space-y-2">
+          <Label>Categoria</Label>
+          <CategorySelect
+            storeId={storeId}
+            value={form.categoryId || null}
+            onChange={(categoryId) => setForm((f) => ({ ...f, categoryId: categoryId || undefined }))}
           />
         </div>
 

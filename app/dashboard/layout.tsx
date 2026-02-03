@@ -2,16 +2,38 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { DashboardProvider } from "@/contexts/dashboard-context";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { LuLogOut, LuHouse, LuPackage, LuReceipt } from "react-icons/lu";
+import {
+  LuLogOut,
+  LuHouse,
+  LuPackage,
+  LuReceipt,
+  LuWrench,
+  LuUsers,
+  LuSettings,
+  LuDownload,
+} from "react-icons/lu";
+import type { UserRole } from "@/lib/auth-check";
 
-const tabs = [
-  { label: "Inicio", href: "/dashboard", icon: LuHouse },
-  { label: "Inventario", href: "/dashboard/inventario", icon: LuPackage },
-  { label: "Recibos", href: "/dashboard/recibos", icon: LuReceipt },
+interface NavTab {
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  roles: UserRole[];
+}
+
+const allTabs: NavTab[] = [
+  { label: "Inicio", href: "/dashboard", icon: LuHouse, roles: ["OWNER", "TECHNICIAN"] },
+  { label: "Órdenes", href: "/dashboard/ordenes", icon: LuWrench, roles: ["OWNER", "TECHNICIAN"] },
+  { label: "Clientes", href: "/dashboard/clientes", icon: LuUsers, roles: ["OWNER", "TECHNICIAN"] },
+  { label: "Inventario", href: "/dashboard/inventario", icon: LuPackage, roles: ["OWNER"] },
+  { label: "Recibos", href: "/dashboard/recibos", icon: LuReceipt, roles: ["OWNER"] },
+  { label: "Exportar", href: "/dashboard/exportar", icon: LuDownload, roles: ["OWNER"] },
+  { label: "Config", href: "/dashboard/configuracion", icon: LuSettings, roles: ["OWNER"] },
 ];
 
 export default function DashboardLayout({
@@ -24,6 +46,11 @@ export default function DashboardLayout({
   const [storeName, setStoreName] = useState("Mi Local");
   const [storeId, setStoreId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [userRole, setUserRole] = useState<UserRole>("TECHNICIAN");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [storeSlug, setStoreSlug] = useState<string>("");
 
   useEffect(() => {
     const raw = localStorage.getItem("user");
@@ -33,9 +60,35 @@ export default function DashboardLayout({
         if (user.storeName) setStoreName(user.storeName);
         if (user.storeId) setStoreId(user.storeId);
         if (user.id) setUserId(user.id);
+        if (user.role) setUserRole(user.role);
       } catch {}
     }
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`/api/auth/me?userId=${userId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.user) {
+          setUserName(data.user.name);
+          setUserEmail(data.user.email);
+          if (data.user.role) setUserRole(data.user.role);
+        }
+      })
+      .catch(() => {});
+  }, [userId]);
+
+  useEffect(() => {
+    if (!storeId) return;
+    fetch(`/api/store-settings?storeId=${storeId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.logoUrl) setLogoUrl(data.logoUrl);
+        if (data?.slug) setStoreSlug(data.slug);
+      })
+      .catch(() => {});
+  }, [storeId]);
 
   if (!storeId || !userId) {
     return (
@@ -52,19 +105,38 @@ export default function DashboardLayout({
         <div className="flex h-16 items-center justify-between px-6">
           <Link
             href="/dashboard"
-            className="text-xl font-bold tracking-tight text-neutral-900 hover:text-neutral-700 transition-colors"
+            className="flex items-center gap-3 text-xl font-bold tracking-tight text-neutral-900 hover:text-neutral-700 transition-colors"
           >
+            {logoUrl && (
+              <Image
+                src={logoUrl}
+                alt="Logo"
+                width={36}
+                height={36}
+                className="rounded-md object-contain"
+              />
+            )}
             {storeName}
           </Link>
           <Popover>
             <PopoverTrigger asChild>
               <button className="cursor-pointer rounded-full focus:outline-none focus:ring-2 focus:ring-neutral-300">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-800 text-sm font-semibold text-white">
-                  {storeName.charAt(0).toUpperCase()}
+                  {(userName || storeName).charAt(0).toUpperCase()}
                 </div>
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-48 p-1">
+            <PopoverContent align="end" className="w-56 p-1">
+              {(userName || userEmail) && (
+                <div className="px-3 py-2 border-b border-neutral-200 mb-1">
+                  {userName && (
+                    <p className="text-sm font-medium text-neutral-900 truncate">{userName}</p>
+                  )}
+                  {userEmail && (
+                    <p className="text-xs text-neutral-500 truncate">{userEmail}</p>
+                  )}
+                </div>
+              )}
               <button
                 className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
                 onClick={() => {
@@ -79,8 +151,8 @@ export default function DashboardLayout({
           </Popover>
         </div>
         {/* Tabs */}
-        <nav className="flex gap-0 px-6">
-          {tabs.map((tab) => {
+        <nav className="flex gap-0 px-6 overflow-x-auto">
+          {allTabs.filter((tab) => tab.roles.includes(userRole)).map((tab) => {
             const isActive = tab.href === "/dashboard"
               ? pathname === "/dashboard"
               : pathname.startsWith(tab.href);
@@ -105,7 +177,7 @@ export default function DashboardLayout({
 
       {/* Content */}
       <main className="flex-1 p-6">
-        <DashboardProvider storeId={storeId} userId={userId}>
+        <DashboardProvider storeId={storeId} storeName={storeName} storeSlug={storeSlug} userId={userId} userRole={userRole}>
           {children}
         </DashboardProvider>
       </main>

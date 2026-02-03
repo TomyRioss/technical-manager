@@ -13,8 +13,8 @@ datasource db {
 
 enum PaymentMethod {
   CASH
-  POSNET
-  TRANSFER
+  DEBIT_TRANSFER
+  CREDIT_TRANSFER
   OTHER
 }
 
@@ -22,6 +22,39 @@ enum ReceiptStatus {
   PENDING
   COMPLETED
   CANCELLED
+}
+
+enum UserRole {
+  OWNER
+  TECHNICIAN
+}
+
+enum OrderStatus {
+  RECIBIDO
+  EN_REVISION
+  ESPERANDO_REPUESTO
+  EN_REPARACION
+  LISTO_PARA_RETIRAR
+  ENTREGADO
+  SIN_REPARACION
+}
+
+enum ClientTag {
+  NEW
+  RECURRING
+  FREQUENT
+  VIP
+}
+
+enum NoteType {
+  INTERNAL
+  TECHNICIAN
+}
+
+enum WarrantyStatus {
+  ACTIVE
+  EXPIRED
+  CLAIMED
 }
 
 // ============================================================
@@ -37,9 +70,15 @@ model Store {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  users    User[]
-  items    Item[]
-  receipts Receipt[]
+  users       User[]
+  items       Item[]
+  receipts    Receipt[]
+  commissions PaymentMethodCommission[]
+  clients     Client[]
+  workOrders    WorkOrder[]
+  settings      StoreSettings?
+  deviceBrands  DeviceBrand[]
+  categories    Category[]
 
   @@map("stores")
 }
@@ -56,6 +95,7 @@ model User {
   phone        String?
   address      String?
   profileImage String?  @map("profile_image")
+  role         UserRole @default(TECHNICIAN)
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -63,7 +103,11 @@ model User {
   storeId String @map("store_id") @db.Uuid
   store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
-  receipts Receipt[]
+  receipts           Receipt[]
+  assignedOrders     WorkOrder[]      @relation("TechnicianOrders")
+  createdOrders      WorkOrder[]      @relation("CreatedByOrders")
+  statusChanges      OrderStatusLog[]
+  notes              OrderNote[]
 
   @@index([storeId])
   @@map("users")
@@ -79,6 +123,7 @@ model Item {
   name      String
   salePrice Float    @map("sale_price")
   stock     Int      @default(0)
+  imageUrl  String?  @map("image_url")
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -86,12 +131,16 @@ model Item {
   storeId String @map("store_id") @db.Uuid
   store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
+  categoryId String?   @map("category_id") @db.Uuid
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
   receiptItems ReceiptItem[]
 
   @@unique([storeId, sku])
   @@index([storeId])
   @@index([name])
   @@index([sku])
+  @@index([categoryId])
   @@map("items")
 }
 
@@ -150,4 +199,264 @@ model ReceiptItem {
   @@index([receiptId])
   @@index([itemId])
   @@map("receipt_items")
+}
+
+// ============================================================
+// PAYMENT METHOD COMMISSION (Comisión por Método de Pago)
+// ============================================================
+
+model PaymentMethodCommission {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  paymentMethod  PaymentMethod @map("payment_method")
+  commissionRate Float         @default(0.0) @map("commission_rate")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  storeId String @map("store_id") @db.Uuid
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, paymentMethod])
+  @@index([storeId])
+  @@map("payment_method_commissions")
+}
+
+// ============================================================
+// CLIENT (Cliente del Local)
+// ============================================================
+
+model Client {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  phone      String?
+  email      String?
+  notes      String?
+  tag        ClientTag @default(NEW)
+  visitCount Int       @default(0) @map("visit_count")
+  totalSpent Float     @default(0) @map("total_spent")
+  isActive   Boolean   @default(true) @map("is_active")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  storeId String @map("store_id") @db.Uuid
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  workOrders WorkOrder[]
+
+  @@index([storeId])
+  @@index([name])
+  @@index([phone])
+  @@map("clients")
+}
+
+// ============================================================
+// WORK ORDER (Orden de Trabajo)
+// ============================================================
+
+model WorkOrder {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderCode         String         @map("order_code")
+  deviceModel       String         @map("device_model")
+  reportedFault     String         @map("reported_fault")
+  faultTags         String[]       @map("fault_tags")
+  agreedPrice       Float?         @map("agreed_price")
+  status            OrderStatus    @default(RECIBIDO)
+  warrantyDays      Int?           @map("warranty_days")
+  warrantyExpires   DateTime?      @map("warranty_expires")
+  warrantyStatus    WarrantyStatus? @map("warranty_status")
+  internalNotes     String?        @map("internal_notes")
+  technicianMessage String?        @map("technician_message")
+  isActive          Boolean        @default(true) @map("is_active")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  clientId    String @map("client_id") @db.Uuid
+  client      Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  technicianId String? @map("technician_id") @db.Uuid
+  technician   User?   @relation("TechnicianOrders", fields: [technicianId], references: [id], onDelete: SetNull)
+
+  createdById String @map("created_by_id") @db.Uuid
+  createdBy   User   @relation("CreatedByOrders", fields: [createdById], references: [id], onDelete: Restrict)
+
+  storeId String @map("store_id") @db.Uuid
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  photos     OrderPhoto[]
+  statusLogs OrderStatusLog[]
+  notes      OrderNote[]
+  rating     OrderRating?
+
+  @@unique([storeId, orderCode])
+  @@index([storeId])
+  @@index([clientId])
+  @@index([technicianId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("work_orders")
+}
+
+// ============================================================
+// ORDER PHOTO (Fotos del Equipo)
+// ============================================================
+
+model OrderPhoto {
+  id      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  url     String
+  caption String?
+  takenAt DateTime @default(now()) @map("taken_at")
+
+  orderId String    @map("order_id") @db.Uuid
+  order   WorkOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_photos")
+}
+
+// ============================================================
+// ORDER STATUS LOG (Historial de Estados)
+// ============================================================
+
+model OrderStatusLog {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fromStatus OrderStatus @map("from_status")
+  toStatus   OrderStatus @map("to_status")
+  message    String?
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  orderId String    @map("order_id") @db.Uuid
+  order   WorkOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  changedById String @map("changed_by_id") @db.Uuid
+  changedBy   User   @relation(fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@map("order_status_logs")
+}
+
+// ============================================================
+// ORDER NOTE (Notas de la Orden)
+// ============================================================
+
+model OrderNote {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  content   String
+  type      NoteType @default(INTERNAL)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  orderId String    @map("order_id") @db.Uuid
+  order   WorkOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  authorId String @map("author_id") @db.Uuid
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@map("order_notes")
+}
+
+// ============================================================
+// ORDER RATING (Valoración Post-Servicio)
+// ============================================================
+
+model OrderRating {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  stars     Int
+  feedback  String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  orderId String    @unique @map("order_id") @db.Uuid
+  order   WorkOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_ratings")
+}
+
+// ============================================================
+// STORE SETTINGS (Configuración del Local)
+// ============================================================
+
+model StoreSettings {
+  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  logoUrl          String? @map("logo_url")
+  primaryColor     String  @default("#000000") @map("primary_color")
+  welcomeMessage   String? @map("welcome_message")
+  messageSignature String? @map("message_signature")
+  slug             String  @unique
+  googleMapsUrl    String? @map("google_maps_url")
+  whatsappNumber   String? @map("whatsapp_number")
+  unretrievedDays  Int     @default(7) @map("unretrieved_days")
+  storeAddress     String? @map("store_address")
+  businessHours    String? @map("business_hours")
+  mapLatitude      Float?  @map("map_latitude")
+  mapLongitude     Float?  @map("map_longitude")
+  facebookUrl      String? @map("facebook_url")
+  instagramUrl     String? @map("instagram_url")
+  tiktokUrl        String? @map("tiktok_url")
+  twitterUrl       String? @map("twitter_url")
+  youtubeUrl       String? @map("youtube_url")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  storeId String @unique @map("store_id") @db.Uuid
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("store_settings")
+}
+
+// ============================================================
+// CATEGORY (Categoría de Producto)
+// ============================================================
+
+model Category {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  storeId String @map("store_id") @db.Uuid
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  items Item[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("categories")
+}
+
+// ============================================================
+// DEVICE BRAND (Marca de Dispositivo)
+// ============================================================
+
+model DeviceBrand {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  isGlobal  Boolean  @default(false) @map("is_global")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  storeId String? @map("store_id") @db.Uuid
+  store   Store?  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  models DeviceModel[]
+
+  @@index([storeId])
+  @@index([isGlobal])
+  @@map("device_brands")
+}
+
+// ============================================================
+// DEVICE MODEL (Modelo de Dispositivo)
+// ============================================================
+
+model DeviceModel {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  brandId String      @map("brand_id") @db.Uuid
+  brand   DeviceBrand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, name])
+  @@index([brandId])
+  @@map("device_models")
 }

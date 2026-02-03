@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { LuArrowLeft } from "react-icons/lu";
 import Link from "next/link";
+import { formatPrice } from "@/lib/utils";
 
 export default function ReceiptDetailPage() {
   const params = useParams();
@@ -109,10 +110,10 @@ export default function ReceiptDetailPage() {
                       {item.quantity}
                     </TableCell>
                     <TableCell className="text-right">
-                      ${item.unitPrice.toFixed(2)}
+                      ${formatPrice(item.unitPrice)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      ${item.lineTotal.toFixed(2)}
+                      ${formatPrice(item.lineTotal)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -128,7 +129,7 @@ export default function ReceiptDetailPage() {
           <div className="flex justify-between">
             <span className="text-neutral-500">Subtotal</span>
             <span className="font-medium">
-              ${receipt.subtotal.toFixed(2)}
+              ${formatPrice(receipt.subtotal)}
             </span>
           </div>
           <div className="flex justify-between">
@@ -136,13 +137,13 @@ export default function ReceiptDetailPage() {
               Comisión ({receipt.commissionRate}%)
             </span>
             <span className="font-medium">
-              ${receipt.commissionAmount.toFixed(2)}
+              ${formatPrice(receipt.commissionAmount)}
             </span>
           </div>
           <Separator />
           <div className="flex justify-between text-base font-semibold">
             <span>Total</span>
-            <span>${receipt.total.toFixed(2)}</span>
+            <span>${formatPrice(receipt.total)}</span>
           </div>
         </div>
 

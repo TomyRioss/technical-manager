@@ -8,8 +8,9 @@ export async function GET(req: NextRequest) {
   }
 
   const items = await prisma.item.findMany({
-    where: { storeId },
+    where: { storeId, isActive: true },
     orderBy: { createdAt: "desc" },
+    include: { category: { select: { id: true, name: true } } } as any,
   });
 
   return NextResponse.json(items);
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, sku, salePrice, stock, isActive, storeId } = body;
+  const { name, sku, salePrice, stock, isActive, storeId, categoryId } = body;
 
   if (!name || !storeId) {
     return NextResponse.json({ error: "name y storeId requeridos" }, { status: 400 });
@@ -31,7 +32,9 @@ export async function POST(req: NextRequest) {
       stock: stock || 0,
       isActive: isActive ?? true,
       storeId,
-    },
+      categoryId: categoryId || null,
+    } as any,
+    include: { category: { select: { id: true, name: true } } } as any,
   });
 
   return NextResponse.json(item, { status: 201 });

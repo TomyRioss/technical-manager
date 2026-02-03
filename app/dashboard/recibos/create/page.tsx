@@ -7,6 +7,7 @@ import type { ReceiptItem } from "@/types/receipt";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PriceInput } from "@/components/ui/price-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -16,11 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LuArrowLeft, LuPlus, LuTrash2, LuSearch } from "react-icons/lu";
+import { LuArrowLeft, LuPlus, LuTrash2, LuSearch, LuSettings } from "react-icons/lu";
 import Link from "next/link";
 import type { Product } from "@/types/product";
+import { formatPrice } from "@/lib/utils";
 
-const paymentMethods = ["Efectivo", "Posnet", "Transferencia", "Otro"];
+const paymentMethods = ["Efectivo", "Transferencia Debito", "Transferencia Credito", "Otro"];
 
 const emptyForm = {
   paymentMethod: "",
@@ -41,7 +43,7 @@ function newItem(): ReceiptItem {
 
 export default function CreateReceiptPage() {
   const router = useRouter();
-  const { addReceipt, products } = useDashboard();
+  const { addReceipt, products, commissions, updateCommissions, getCommissionRate } = useDashboard();
   const [form, setForm] = useState(emptyForm);
   const [formItems, setFormItems] = useState<ReceiptItem[]>([newItem()]);
   const [searchId, setSearchId] = useState<string | null>(null);
@@ -133,14 +135,18 @@ export default function CreateReceiptPage() {
         </h1>
       </div>
 
-      <div className="w-full space-y-4">
+      <div className="max-w-2xl mx-auto space-y-4">
         {/* Payment method */}
         <div className="space-y-2">
           <Label>Método de pago *</Label>
           <Select
             value={form.paymentMethod}
             onValueChange={(v) =>
-              setForm((f) => ({ ...f, paymentMethod: v }))
+              setForm((f) => ({
+                ...f,
+                paymentMethod: v,
+                commissionRate: getCommissionRate(v),
+              }))
             }
           >
             <SelectTrigger>
@@ -200,7 +206,7 @@ export default function CreateReceiptPage() {
                               }}
                             >
                               <span className="text-neutral-900">{p.name}</span>
-                              <span className="text-neutral-500">${p.price.toFixed(2)}</span>
+                              <span className="text-neutral-500">${formatPrice(p.price)}</span>
                             </button>
                           </li>
                         ))}
@@ -221,22 +227,13 @@ export default function CreateReceiptPage() {
                     )
                   }
                 />
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.01}
+                <PriceInput
                   placeholder="P. unitario"
-                  value={item.unitPrice || ""}
-                  onChange={(e) =>
-                    updateItem(
-                      item.id,
-                      "unitPrice",
-                      parseFloat(e.target.value) || 0
-                    )
-                  }
+                  value={item.unitPrice}
+                  onChange={(val) => updateItem(item.id, "unitPrice", val)}
                 />
                 <span className="text-right text-sm font-medium text-neutral-700">
-                  ${item.lineTotal.toFixed(2)}
+                  ${formatPrice(item.lineTotal)}
                 </span>
                 <Button
                   variant="ghost"
@@ -277,6 +274,17 @@ export default function CreateReceiptPage() {
             }
             placeholder="0"
           />
+          <Link href="/dashboard/configuracion/comisiones">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-1"
+            >
+              <LuSettings className="mr-1.5 h-4 w-4" />
+              Administrar comisiones
+            </Button>
+          </Link>
         </div>
 
         {/* Notes */}
@@ -298,20 +306,20 @@ export default function CreateReceiptPage() {
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
             <span className="text-neutral-500">Subtotal</span>
-            <span className="font-medium">${subtotal.toFixed(2)}</span>
+            <span className="font-medium">${formatPrice(subtotal)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-neutral-500">
               Comisión ({form.commissionRate}%)
             </span>
             <span className="font-medium">
-              ${commissionAmount.toFixed(2)}
+              ${formatPrice(commissionAmount)}
             </span>
           </div>
           <Separator />
           <div className="flex justify-between text-base font-semibold">
             <span>Total</span>
-            <span>${total.toFixed(2)}</span>
+            <span>${formatPrice(total)}</span>
           </div>
         </div>
 
@@ -325,6 +333,7 @@ export default function CreateReceiptPage() {
           </Link>
         </div>
       </div>
+
     </div>
   );
 }

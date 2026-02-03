@@ -3,16 +3,16 @@ import { prisma } from "@/lib/db";
 import type { PaymentMethod, ReceiptStatus } from "@/lib/generated/prisma";
 
 const paymentMethodMap: Record<string, PaymentMethod> = {
-  Efectivo: "CASH",
-  Posnet: "POSNET",
-  Transferencia: "TRANSFER",
-  Otro: "OTHER",
+  "Efectivo": "CASH",
+  "Transferencia Debito": "DEBIT_TRANSFER",
+  "Transferencia Credito": "CREDIT_TRANSFER",
+  "Otro": "OTHER",
 };
 
 const paymentMethodReverseMap: Record<PaymentMethod, string> = {
   CASH: "Efectivo",
-  POSNET: "Posnet",
-  TRANSFER: "Transferencia",
+  DEBIT_TRANSFER: "Transferencia Debito",
+  CREDIT_TRANSFER: "Transferencia Credito",
   OTHER: "Otro",
 };
 
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   }
 
   const receipts = await prisma.receipt.findMany({
-    where: { storeId },
+    where: { storeId, isActive: true },
     include: { items: { include: { item: true } } },
     orderBy: { createdAt: "desc" },
   });

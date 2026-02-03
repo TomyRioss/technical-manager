@@ -7,20 +7,33 @@ import type { Product } from "@/types/product";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PriceInput } from "@/components/ui/price-input";
+import { CategorySelect } from "@/components/ui/category-select";
 import { LuArrowLeft, LuUpload } from "react-icons/lu";
 import Link from "next/link";
 
+function generateSku(): string {
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const digits = "0123456789";
+  let sku = "";
+  for (let i = 0; i < 3; i++) sku += letters[Math.floor(Math.random() * 26)];
+  for (let i = 0; i < 6; i++) sku += digits[Math.floor(Math.random() * 10)];
+  for (let i = 0; i < 3; i++) sku += letters[Math.floor(Math.random() * 26)];
+  return sku;
+}
+
 const emptyProduct: Omit<Product, "id"> = {
   name: "",
-  sku: "",
+  sku: generateSku(),
   price: 0,
   stock: 0,
   active: true,
+  categoryId: undefined,
 };
 
 export default function CreateProductPage() {
   const router = useRouter();
-  const { addProduct, setProductImage } = useDashboard();
+  const { storeId, addProduct, setProductImage } = useDashboard();
   const [form, setForm] = useState(emptyProduct);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -116,7 +129,7 @@ export default function CreateProductPage() {
 
         {/* SKU */}
         <div className="space-y-2">
-          <Label htmlFor="sku">SKU / Código</Label>
+          <Label htmlFor="sku">SKU / Codigo</Label>
           <Input
             id="sku"
             value={form.sku}
@@ -127,23 +140,25 @@ export default function CreateProductPage() {
           />
         </div>
 
+        {/* Category */}
+        <div className="space-y-2">
+          <Label>Categoria</Label>
+          <CategorySelect
+            storeId={storeId}
+            value={form.categoryId || null}
+            onChange={(categoryId) => setForm((f) => ({ ...f, categoryId: categoryId || undefined }))}
+          />
+        </div>
+
         {/* Price + Stock */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="price">Precio de venta</Label>
-            <Input
+            <PriceInput
               id="price"
-              type="number"
-              min={0}
-              step={0.01}
-              value={form.price || ""}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  price: parseFloat(e.target.value) || 0,
-                }))
-              }
-              placeholder="0.00"
+              value={form.price}
+              onChange={(price) => setForm((f) => ({ ...f, price }))}
+              placeholder="0"
             />
           </div>
           <div className="space-y-2">

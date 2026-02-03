@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
       "@prisma/client": "./lib/generated/prisma",
     },
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.supabase.co",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

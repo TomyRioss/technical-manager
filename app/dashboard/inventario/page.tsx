@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LuPlus, LuPencil, LuTrash2, LuSearch } from "react-icons/lu";
+import { formatPrice } from "@/lib/utils";
 
 export default function InventarioPage() {
   const { products, deleteProduct } = useDashboard();
@@ -70,6 +71,7 @@ export default function InventarioPage() {
               <TableRow>
                 <TableHead className="w-12">Img</TableHead>
                 <TableHead>Nombre</TableHead>
+                <TableHead>Categoría</TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead className="text-right">Precio</TableHead>
                 <TableHead className="text-right">Stock</TableHead>
@@ -95,10 +97,13 @@ export default function InventarioPage() {
                     {product.name}
                   </TableCell>
                   <TableCell className="text-neutral-500">
-                    {product.sku || "\u2014"}
+                    {product.categoryName || "—"}
+                  </TableCell>
+                  <TableCell className="text-neutral-500">
+                    {product.sku || "—"}
                   </TableCell>
                   <TableCell className="text-right">
-                    ${product.price.toFixed(2)}
+                    ${formatPrice(product.price)}
                   </TableCell>
                   <TableCell className="text-right">
                     {product.stock}

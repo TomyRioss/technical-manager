@@ -33,3 +33,4 @@
 - No ejecutar comandos destructivos de git (reset --hard, push --force, etc.)
 - No hacer mas de lo pedido. Seguir requerimientos al pie de la letra
 - Ser concreto y directo en cada respuesta
+- NUNCA hardcodear información. Todos los datos deben ser obtenidos desde la base de datos
