@@ -52,7 +52,7 @@ export default function CreateReceiptPage() {
 
   const subtotal = formItems.reduce((sum, item) => sum + item.lineTotal, 0);
   const commissionAmount = subtotal * (form.commissionRate / 100);
-  const total = subtotal + commissionAmount;
+  const total = subtotal - commissionAmount;
 
   function updateItem(id: string, field: keyof ReceiptItem, value: string | number) {
     setFormItems((prev) =>
@@ -99,8 +99,14 @@ export default function CreateReceiptPage() {
   );
 
   async function handleSave() {
-    if (!form.paymentMethod) return;
-    if (formItems.every((i) => !i.productId)) return;
+    if (!form.paymentMethod) {
+      alert("Seleccioná un método de pago.");
+      return;
+    }
+    if (formItems.every((i) => !i.productId)) {
+      alert("Agregá al menos un ítem con producto.");
+      return;
+    }
 
     const validItems = formItems.filter((i) => i.productId);
     const sub = validItems.reduce((s, i) => s + i.lineTotal, 0);
@@ -113,7 +119,7 @@ export default function CreateReceiptPage() {
       subtotal: sub,
       commissionRate: form.commissionRate,
       commissionAmount: comm,
-      total: sub + comm,
+      total: sub - comm,
       notes: form.notes,
       items: validItems,
     });

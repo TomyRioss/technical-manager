@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Phone, Mail, MessageSquare } from "lucide-react";
+import { Phone, MessageSquare } from "lucide-react";
 
 export default function ContactPage() {
   const [wantCall, setWantCall] = useState(true);
@@ -120,16 +120,6 @@ export default function ContactPage() {
                   </div>
                 </a>
 
-                <a
-                  href="mailto:tomasrioss2006@gmail.com"
-                  className="flex items-center gap-4 p-4 rounded-lg border hover:bg-neutral-100 transition-colors"
-                >
-                  <Mail className="h-8 w-8 text-red-600" />
-                  <div>
-                    <p className="font-medium">Email</p>
-                    <p className="text-muted-foreground">tomasrioss2006@gmail.com</p>
-                  </div>
-                </a>
               </CardContent>
             </Card>
           )}

@@ -97,7 +97,7 @@ export default function RecibosPage() {
                     ${formatPrice(receipt.subtotal)}
                   </TableCell>
                   <TableCell className="text-right text-neutral-500">
-                    ${formatPrice(receipt.commissionAmount)}
+                    -${formatPrice(receipt.commissionAmount)}
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     ${formatPrice(receipt.total)}

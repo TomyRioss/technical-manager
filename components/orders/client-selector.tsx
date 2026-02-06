@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ClientTagBadge } from "@/components/clients/client-tag-badge";
+import { ClientForm } from "@/components/clients/client-form";
 import { Users, Search } from "lucide-react";
 import type { ClientTag } from "@/types/client";
 
@@ -39,6 +45,8 @@ export function ClientSelector({ storeId, selectedId, onSelect }: ClientSelector
   const [allClients, setAllClients] = useState<ClientOption[]>([]);
   const [directorySearch, setDirectorySearch] = useState("");
   const [loadingDirectory, setLoadingDirectory] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [savingClient, setSavingClient] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Búsqueda en el input principal
@@ -90,6 +98,22 @@ export function ClientSelector({ storeId, selectedId, onSelect }: ClientSelector
     setSelected(null);
     setQuery("");
     onSelect(null);
+  }
+
+  async function handleCreateClient(data: { name: string; phone: string; email: string; notes: string }) {
+    setSavingClient(true);
+    const res = await fetch("/api/clients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...data, storeId }),
+    });
+    if (res.ok) {
+      const created = await res.json();
+      handleSelect({ id: created.id, name: created.name, phone: created.phone, email: created.email, tag: created.tag });
+      setCreateDialogOpen(false);
+      setAllClients([]);
+    }
+    setSavingClient(false);
   }
 
   // Filtrar clientes del directorio
@@ -148,12 +172,13 @@ export function ClientSelector({ storeId, selectedId, onSelect }: ClientSelector
                     </button>
                   ))
                 )}
-                <Link
-                  href="/dashboard/clientes/create"
-                  className="block text-sm text-sky-500 hover:text-sky-600 hover:underline px-3 py-3 mt-2 border-t"
+                <button
+                  type="button"
+                  onClick={() => setCreateDialogOpen(true)}
+                  className="block text-sm text-sky-500 hover:text-sky-600 hover:underline px-3 py-3 mt-2 border-t cursor-pointer w-full text-left"
                 >
                   + Añadir cliente
-                </Link>
+                </button>
               </div>
             </div>
           </SheetContent>
@@ -186,12 +211,13 @@ export function ClientSelector({ storeId, selectedId, onSelect }: ClientSelector
         </div>
       </div>
 
-      <Link
-        href="/dashboard/clientes/create"
-        className="text-sm text-sky-500 hover:text-sky-600 hover:underline"
+      <button
+        type="button"
+        onClick={() => setCreateDialogOpen(true)}
+        className="text-sm text-sky-500 hover:text-sky-600 hover:underline cursor-pointer"
       >
         + Añadir cliente
-      </Link>
+      </button>
 
       {showResults && results.length > 0 && !selected && (
         <div className="absolute z-10 top-full mt-1 w-full bg-white border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
@@ -211,6 +237,19 @@ export function ClientSelector({ storeId, selectedId, onSelect }: ClientSelector
           ))}
         </div>
       )}
+
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuevo Cliente</DialogTitle>
+          </DialogHeader>
+          <ClientForm
+            onSubmit={handleCreateClient}
+            onCancel={() => setCreateDialogOpen(false)}
+            loading={savingClient}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

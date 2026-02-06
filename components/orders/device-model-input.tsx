@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AddDeviceDialog } from "@/components/orders/add-device-dialog";
 import type { DeviceOption } from "@/types/device";
 
 interface DeviceModelInputProps {
@@ -17,6 +17,7 @@ export function DeviceModelInput({ storeId, value, onChange }: DeviceModelInputP
   const [results, setResults] = useState<DeviceOption[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [selected, setSelected] = useState(!!value);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -91,12 +92,13 @@ export function DeviceModelInput({ storeId, value, onChange }: DeviceModelInputP
           required
         />
       )}
-      <Link
-        href="/dashboard/configuracion/dispositivos"
-        className="text-sm text-sky-500 hover:text-sky-600 hover:underline"
+      <button
+        type="button"
+        onClick={() => setAddDialogOpen(true)}
+        className="text-sm text-sky-500 hover:text-sky-600 hover:underline cursor-pointer"
       >
         + Añadir dispositivo
-      </Link>
+      </button>
       {showResults && results.length > 0 && !selected && (
         <div className="absolute z-10 top-full mt-1 w-full bg-white border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
           {results.map((opt) => (
@@ -112,6 +114,18 @@ export function DeviceModelInput({ storeId, value, onChange }: DeviceModelInputP
           ))}
         </div>
       )}
+
+      <AddDeviceDialog
+        open={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+        storeId={storeId}
+        onDeviceCreated={(displayName) => {
+          setQuery(displayName);
+          onChange(displayName);
+          setSelected(true);
+          setShowResults(false);
+        }}
+      />
     </div>
   );
 }
