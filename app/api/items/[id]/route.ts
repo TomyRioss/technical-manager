@@ -22,13 +22,14 @@ export async function PUT(
 ) {
   const { id } = await params;
   const body = await req.json();
-  const { name, sku, salePrice, stock, isActive, categoryId } = body;
+  const { name, sku, costPrice, salePrice, stock, isActive, categoryId } = body;
 
   const item = await prisma.item.update({
     where: { id },
     data: {
       ...(name !== undefined && { name }),
       ...(sku !== undefined && { sku }),
+      ...(costPrice !== undefined && { costPrice: costPrice || null }),
       ...(salePrice !== undefined && { salePrice }),
       ...(stock !== undefined && { stock }),
       ...(isActive !== undefined && { isActive }),
@@ -45,6 +46,6 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  await prisma.item.update({ where: { id }, data: { isActive: false } });
+  await prisma.item.update({ where: { id }, data: { isDeleted: true } });
   return NextResponse.json({ ok: true });
 }

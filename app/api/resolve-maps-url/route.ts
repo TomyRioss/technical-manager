@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
         try {
           const geoRes = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-            { headers: { "User-Agent": "TechnicalManager/1.0" } }
+            { headers: { "User-Agent": "Koldesk/1.0" } }
           );
           if (geoRes.ok) {
             const geoData = await geoRes.json();

@@ -18,22 +18,24 @@ import {
   LuDownload,
 } from "react-icons/lu";
 import type { UserRole } from "@/lib/auth-check";
+import type { StorePlan } from "@/lib/store-plans";
 
 interface NavTab {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   roles: UserRole[];
+  size?: "default" | "small";
 }
 
 const allTabs: NavTab[] = [
   { label: "Inicio", href: "/dashboard", icon: LuHouse, roles: ["OWNER", "TECHNICIAN"] },
-  { label: "Órdenes", href: "/dashboard/ordenes", icon: LuWrench, roles: ["OWNER", "TECHNICIAN"] },
-  { label: "Clientes", href: "/dashboard/clientes", icon: LuUsers, roles: ["OWNER", "TECHNICIAN"] },
   { label: "Inventario", href: "/dashboard/inventario", icon: LuPackage, roles: ["OWNER"] },
-  { label: "Recibos", href: "/dashboard/recibos", icon: LuReceipt, roles: ["OWNER"] },
-  { label: "Exportar", href: "/dashboard/exportar", icon: LuDownload, roles: ["OWNER"] },
-  { label: "Config", href: "/dashboard/configuracion", icon: LuSettings, roles: ["OWNER"] },
+  { label: "Órdenes", href: "/dashboard/ordenes", icon: LuWrench, roles: ["OWNER", "TECHNICIAN"] },
+  { label: "Clientes", href: "/dashboard/clientes", icon: LuUsers, roles: ["OWNER", "TECHNICIAN"], size: "small" },
+  { label: "Recibos", href: "/dashboard/recibos", icon: LuReceipt, roles: ["OWNER"], size: "small" },
+  { label: "Exportar", href: "/dashboard/exportar", icon: LuDownload, roles: ["OWNER"], size: "small" },
+  { label: "Config", href: "/dashboard/configuracion", icon: LuSettings, roles: ["OWNER"], size: "small" },
 ];
 
 export default function DashboardLayout({
@@ -51,6 +53,7 @@ export default function DashboardLayout({
   const [userRole, setUserRole] = useState<UserRole>("TECHNICIAN");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [storeSlug, setStoreSlug] = useState<string>("");
+  const [storePlan, setStorePlan] = useState<StorePlan>("FREE");
 
   useEffect(() => {
     const raw = localStorage.getItem("user");
@@ -86,6 +89,16 @@ export default function DashboardLayout({
       .then((data) => {
         if (data?.logoUrl) setLogoUrl(data.logoUrl);
         if (data?.slug) setStoreSlug(data.slug);
+      })
+      .catch(() => {});
+  }, [storeId]);
+
+  useEffect(() => {
+    if (!storeId) return;
+    fetch(`/api/stores/${storeId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.plan) setStorePlan(data.plan);
       })
       .catch(() => {});
   }, [storeId]);
@@ -161,13 +174,16 @@ export default function DashboardLayout({
                 key={tab.href}
                 href={tab.href}
                 className={cn(
-                  "flex items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium transition-colors",
+                  "flex items-center border-b-2 font-medium transition-colors",
+                  tab.size === "small"
+                    ? "gap-1 px-3 py-2 text-xs"
+                    : "gap-1.5 px-4 py-2 text-sm",
                   isActive
                     ? "border-neutral-900 text-neutral-900"
                     : "border-transparent text-neutral-500 hover:text-neutral-700"
                 )}
               >
-                <tab.icon className="h-4 w-4" />
+                <tab.icon className={tab.size === "small" ? "h-3.5 w-3.5" : "h-4 w-4"} />
                 {tab.label}
               </Link>
             );
@@ -177,7 +193,7 @@ export default function DashboardLayout({
 
       {/* Content */}
       <main className="flex-1 p-6">
-        <DashboardProvider storeId={storeId} storeName={storeName} storeSlug={storeSlug} userId={userId} userRole={userRole}>
+        <DashboardProvider storeId={storeId} storeName={storeName} storeSlug={storeSlug} storePlan={storePlan} userId={userId} userRole={userRole}>
           {children}
         </DashboardProvider>
       </main>

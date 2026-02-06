@@ -57,18 +57,27 @@ enum WarrantyStatus {
   CLAIMED
 }
 
+enum StorePlan {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
 // ============================================================
 // STORE (Local Técnico)
 // ============================================================
 
 model Store {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String
-  address   String?
-  phone     String?
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  address       String?
+  phone         String?
+  isActive      Boolean    @default(true) @map("is_active")
+  plan          StorePlan  @default(FREE)
+  planExpiresAt DateTime?  @map("plan_expires_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
 
   users       User[]
   items       Item[]
@@ -121,10 +130,12 @@ model Item {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   sku       String
   name      String
+  costPrice Float?   @map("cost_price")
   salePrice Float    @map("sale_price")
   stock     Int      @default(0)
   imageUrl  String?  @map("image_url")
   isActive  Boolean  @default(true) @map("is_active")
+  isDeleted Boolean  @default(false) @map("is_deleted")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -380,6 +391,7 @@ model StoreSettings {
   welcomeMessage   String? @map("welcome_message")
   messageSignature String? @map("message_signature")
   slug             String  @unique
+  inviteCode       String? @unique @map("invite_code")
   googleMapsUrl    String? @map("google_maps_url")
   whatsappNumber   String? @map("whatsapp_number")
   unretrievedDays  Int     @default(7) @map("unretrieved_days")

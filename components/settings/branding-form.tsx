@@ -205,7 +205,7 @@ export function BrandingForm() {
           required
         />
         <p className="text-xs text-neutral-500">
-          Seguimiento: https://technicalmanager.com/{slug || "mi-local"} — Tienda: https://technicalmanager.com/{slug || "mi-local"}/tienda
+          Seguimiento: https://kudesk.com/{slug || "mi-local"} — Tienda: https://kudesk.com/{slug || "mi-local"}/tienda
         </p>
       </div>
 

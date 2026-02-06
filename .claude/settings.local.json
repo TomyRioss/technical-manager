@@ -26,7 +26,10 @@
       "Bash(npx prisma:*)",
       "Bash(curl:*)",
       "Bash(npm run lint)",
-      "Bash(ls -la \"C:\\\\Users\\\\Pc\\\\Desktop\\\\geneaapp-tools\\\\technical-manager\\\\app\\\\dashboard\"\" | grep -E \"^d \")"
+      "Bash(ls -la \"C:\\\\Users\\\\Pc\\\\Desktop\\\\geneaapp-tools\\\\technical-manager\\\\app\\\\dashboard\"\" | grep -E \"^d \")",
+      "WebFetch(domain:www.pexels.com)",
+      "WebFetch(domain:images.pexels.com)",
+      "WebFetch(domain:www.repairdesk.co)"
     ]
   }
 }

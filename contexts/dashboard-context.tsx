@@ -12,6 +12,7 @@ import type { Product } from "@/types/product";
 import type { Receipt } from "@/types/receipt";
 import type { WorkOrder } from "@/types/work-order";
 import type { UserRole } from "@/lib/auth-check";
+import type { StorePlan } from "@/lib/store-plans";
 
 interface CommissionConfig {
   paymentMethod: string;
@@ -22,12 +23,14 @@ interface DashboardContextType {
   storeId: string;
   storeName: string;
   storeSlug: string;
+  storePlan: StorePlan;
   userId: string;
   userRole: UserRole;
 
   products: Product[];
   addProduct: (product: Omit<Product, "id">) => Promise<string | null>;
   updateProduct: (id: string, product: Omit<Product, "id">) => Promise<void>;
+  updateProductCategory: (id: string, categoryId: string | null) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   getProduct: (id: string) => Product | undefined;
   setProductImage: (id: string, imageUrl: string) => void;
@@ -53,11 +56,12 @@ interface DashboardProviderProps {
   storeId: string;
   storeName: string;
   storeSlug: string;
+  storePlan: StorePlan;
   userId: string;
   userRole: UserRole;
 }
 
-export function DashboardProvider({ children, storeId, storeName, storeSlug, userId, userRole }: DashboardProviderProps) {
+export function DashboardProvider({ children, storeId, storeName, storeSlug, storePlan, userId, userRole }: DashboardProviderProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
@@ -77,6 +81,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, use
           id: i.id as string,
           name: i.name as string,
           sku: i.sku as string,
+          costPrice: (i.costPrice as number) || undefined,
           price: i.salePrice as number,
           stock: i.stock as number,
           active: i.isActive as boolean,
@@ -132,6 +137,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, use
       body: JSON.stringify({
         name: data.name,
         sku: data.sku,
+        costPrice: data.costPrice || null,
         salePrice: data.price,
         stock: data.stock,
         isActive: data.active,
@@ -147,6 +153,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, use
         id: item.id,
         name: item.name,
         sku: item.sku,
+        costPrice: item.costPrice || undefined,
         price: item.salePrice,
         stock: item.stock,
         active: item.isActive,
@@ -166,6 +173,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, use
       body: JSON.stringify({
         name: data.name,
         sku: data.sku,
+        costPrice: data.costPrice || null,
         salePrice: data.price,
         stock: data.stock,
         isActive: data.active,
@@ -182,6 +190,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, use
               id: item.id,
               name: item.name,
               sku: item.sku,
+              costPrice: item.costPrice || undefined,
               price: item.salePrice,
               stock: item.stock,
               active: item.isActive,
@@ -207,6 +216,22 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, use
   function setProductImage(id: string, imageUrl: string) {
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, imageUrl } : p))
+    );
+  }
+
+  async function updateProductCategory(id: string, categoryId: string | null) {
+    const res = await fetch(`/api/items/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ categoryId }),
+    });
+    if (!res.ok) return;
+    const item = await res.json();
+    const cat = item.category as { id: string; name: string } | null;
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, categoryId: cat?.id, categoryName: cat?.name } : p
+      )
     );
   }
 
@@ -289,11 +314,13 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, use
         storeId,
         storeName,
         storeSlug,
+        storePlan,
         userId,
         userRole,
         products,
         addProduct,
         updateProduct,
+        updateProductCategory,
         deleteProduct,
         getProduct,
         setProductImage,

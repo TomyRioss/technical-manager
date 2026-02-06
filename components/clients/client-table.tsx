@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ClientTagBadge } from "./client-tag-badge";
 import type { Client } from "@/types/client";
-import { LuPencil, LuTrash2 } from "react-icons/lu";
+import { LuPencil, LuTrash2, LuMessageCircle } from "react-icons/lu";
 
 interface ClientTableProps {
   clients: Client[];
@@ -82,6 +82,22 @@ export function ClientTable({ clients, onDelete }: ClientTableProps) {
             </TableCell>
             <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-end gap-1">
+                {client.phone && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-green-600 hover:text-green-700"
+                    asChild
+                  >
+                    <a
+                      href={`https://wa.me/${client.phone.replace(/\D/g, "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <LuMessageCircle className="h-4 w-4" />
+                    </a>
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"

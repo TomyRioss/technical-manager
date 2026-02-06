@@ -8,7 +8,20 @@ export async function GET(req: NextRequest) {
   }
 
   const items = await prisma.item.findMany({
-    where: { storeId, isActive: true },
+    where: {
+      storeId,
+      isDeleted: false,
+      OR: [
+        { isActive: true },
+        {
+          isActive: false,
+          OR: [
+            { salePrice: { lte: 0 } },
+            { costPrice: null },
+          ],
+        },
+      ],
+    },
     orderBy: { createdAt: "desc" },
     include: { category: { select: { id: true, name: true } } } as any,
   });
@@ -18,7 +31,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, sku, salePrice, stock, isActive, storeId, categoryId } = body;
+  const { name, sku, costPrice, salePrice, stock, isActive, storeId, categoryId } = body;
 
   if (!name || !storeId) {
     return NextResponse.json({ error: "name y storeId requeridos" }, { status: 400 });
@@ -28,6 +41,7 @@ export async function POST(req: NextRequest) {
     data: {
       name,
       sku: sku || "",
+      costPrice: costPrice || null,
       salePrice: salePrice || 0,
       stock: stock || 0,
       isActive: isActive ?? true,

@@ -48,7 +48,19 @@ export function TiendaFooter({
             </div>
           )}
           <p className="text-sm text-neutral-400">
-            © {year} {storeName}
+            © {year} Koldesk
+          </p>
+          <p className="text-sm text-neutral-400">
+            Desarrollado por{" "}
+            <a
+              href={process.env.NEXT_PUBLIC_KOLDESK_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-neutral-600 hover:text-neutral-900 transition-colors underline"
+            >
+              Koldesk
+            </a>
+            .
           </p>
         </div>
       </div>

@@ -10,6 +10,7 @@ interface PriceInputProps {
   id?: string;
   className?: string;
   min?: number;
+  autoFocus?: boolean;
 }
 
 function formatForDisplay(value: number): string {
@@ -24,6 +25,7 @@ function PriceInput({
   id,
   className,
   min = 0,
+  autoFocus,
 }: PriceInputProps) {
   const [display, setDisplay] = React.useState(() => formatForDisplay(value));
 
@@ -48,6 +50,7 @@ function PriceInput({
       onChange={handleChange}
       placeholder={placeholder}
       className={className}
+      autoFocus={autoFocus}
     />
   );
 }

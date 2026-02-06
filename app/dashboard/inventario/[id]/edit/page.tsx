@@ -14,11 +14,22 @@ import Link from "next/link";
 const emptyProduct: Omit<Product, "id"> = {
   name: "",
   sku: "",
+  costPrice: undefined,
   price: 0,
   stock: 0,
   active: true,
   categoryId: undefined,
 };
+
+function formatNumber(value: number | undefined): string {
+  if (value === undefined || value === 0) return "";
+  return value.toLocaleString("es-AR");
+}
+
+function parseFormattedNumber(value: string): number {
+  const cleaned = value.replace(/\./g, "").replace(/,/g, ".");
+  return parseFloat(cleaned) || 0;
+}
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -41,6 +52,7 @@ export default function EditProductPage() {
     setForm({
       name: product.name,
       sku: product.sku,
+      costPrice: product.costPrice,
       price: product.price,
       stock: product.stock,
       active: product.active,
@@ -180,41 +192,59 @@ export default function EditProductPage() {
           />
         </div>
 
-        {/* Price + Stock */}
+        {/* Cost Price + Sale Price */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="price">Precio de venta</Label>
+            <Label htmlFor="costPrice">Precio de costo</Label>
             <Input
-              id="price"
-              type="number"
-              min={0}
-              step={0.01}
-              value={form.price || ""}
+              id="costPrice"
+              type="text"
+              inputMode="numeric"
+              value={formatNumber(form.costPrice)}
               onChange={(e) =>
                 setForm((f) => ({
                   ...f,
-                  price: parseFloat(e.target.value) || 0,
-                }))
-              }
-              placeholder="0.00"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="stock">Stock</Label>
-            <Input
-              id="stock"
-              type="number"
-              min={0}
-              value={form.stock || ""}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  stock: parseInt(e.target.value) || 0,
+                  costPrice: parseFormattedNumber(e.target.value) || undefined,
                 }))
               }
               placeholder="0"
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="price">Precio de venta</Label>
+            <Input
+              id="price"
+              type="text"
+              inputMode="numeric"
+              value={formatNumber(form.price)}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  price: parseFormattedNumber(e.target.value),
+                }))
+              }
+              placeholder="0"
+            />
+          </div>
+        </div>
+
+        {/* Stock */}
+        <div className="space-y-2">
+          <Label htmlFor="stock">Stock</Label>
+          <Input
+            id="stock"
+            type="number"
+            min={0}
+            value={form.stock || ""}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                stock: parseInt(e.target.value) || 0,
+              }))
+            }
+            placeholder="0"
+            className="max-w-32"
+          />
         </div>
 
         {/* Active */}
