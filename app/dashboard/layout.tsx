@@ -15,7 +15,6 @@ import {
   LuWrench,
   LuUsers,
   LuSettings,
-  LuDownload,
 } from "react-icons/lu";
 import type { UserRole } from "@/lib/auth-check";
 import type { StorePlan } from "@/lib/store-plans";
@@ -34,7 +33,6 @@ const allTabs: NavTab[] = [
   { label: "Órdenes", href: "/dashboard/ordenes", icon: LuWrench, roles: ["OWNER", "TECHNICIAN"] },
   { label: "Clientes", href: "/dashboard/clientes", icon: LuUsers, roles: ["OWNER", "TECHNICIAN"], size: "small" },
   { label: "Recibos", href: "/dashboard/recibos", icon: LuReceipt, roles: ["OWNER"], size: "small" },
-  { label: "Exportar", href: "/dashboard/exportar", icon: LuDownload, roles: ["OWNER"], size: "small" },
   { label: "Config", href: "/dashboard/configuracion", icon: LuSettings, roles: ["OWNER"], size: "small" },
 ];
 

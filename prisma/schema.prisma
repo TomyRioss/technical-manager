@@ -270,6 +270,7 @@ model WorkOrder {
   reportedFault     String         @map("reported_fault")
   faultTags         String[]       @map("fault_tags")
   agreedPrice       Float?         @map("agreed_price")
+  partsCost         Float?         @default(0) @map("parts_cost")
   status            OrderStatus    @default(RECIBIDO)
   warrantyDays      Int?           @map("warranty_days")
   warrantyExpires   DateTime?      @map("warranty_expires")

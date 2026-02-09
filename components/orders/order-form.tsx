@@ -22,6 +22,7 @@ import { useDashboard } from "@/contexts/dashboard-context";
 import { compressImage } from "@/lib/image-compressor";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 
 interface TechnicianOption {
   id: string;
@@ -32,6 +33,7 @@ export function OrderForm() {
   const { storeId, userId } = useDashboard();
   const router = useRouter();
 
+  const [formMode, setFormMode] = useState<"steps" | "complete">("steps");
   const [step, setStep] = useState(1);
   const [clientId, setClientId] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
@@ -39,6 +41,7 @@ export function OrderForm() {
   const [reportedFault, setReportedFault] = useState("");
   const [faultTags, setFaultTags] = useState<string[]>([]);
   const [paidPrice, setPaidPrice] = useState<number>(0);
+  const [partsCost, setPartsCost] = useState<number>(0);
   const [technicianId, setTechnicianId] = useState<string>("");
   const [internalNotes, setInternalNotes] = useState("");
   const [warrantyDays, setWarrantyDays] = useState("");
@@ -76,6 +79,7 @@ export function OrderForm() {
         storeId,
         internalNotes: internalNotes.trim() || null,
         warrantyDays: warrantyDays ? parseInt(warrantyDays) : null,
+        partsCost: partsCost || 0,
       }),
     });
 
@@ -144,33 +148,163 @@ export function OrderForm() {
     </div>
   );
 
+  const FormModeSwitch = () => (
+    <div className="flex items-center gap-2 text-sm">
+      <span className="text-muted-foreground">Formulario:</span>
+      <span className={formMode === "complete" ? "font-medium" : "text-muted-foreground"}>Completo</span>
+      <Switch checked={formMode === "steps"} onCheckedChange={(v) => setFormMode(v ? "steps" : "complete")} />
+      <span className={formMode === "steps" ? "font-medium" : "text-muted-foreground"}>Pasos</span>
+    </div>
+  );
+
+  // Complete mode
+  if (formMode === "complete") {
+    const profit = paidPrice - partsCost;
+    return (
+      <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto">
+        <div className="flex justify-end">
+          <FormModeSwitch />
+        </div>
+
+        {/* Cliente */}
+        <ClientSelector
+          storeId={storeId}
+          selectedId={clientId}
+          onSelect={(c) => {
+            setClientId(c?.id ?? null);
+            setClientName(c?.name ?? "");
+          }}
+        />
+
+        {/* Modelo */}
+        <DeviceModelInput storeId={storeId} value={deviceModel} onChange={setDeviceModel} />
+
+        {/* Falla */}
+        <div className="space-y-2">
+          <Label htmlFor="reportedFault">Falla Reportada *</Label>
+          <Textarea
+            id="reportedFault"
+            placeholder="Descripción de la falla..."
+            value={reportedFault}
+            onChange={(e) => setReportedFault(e.target.value)}
+            rows={3}
+          />
+        </div>
+
+        {/* Precio + Costo */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Precio Pagado *</Label>
+            <div className="flex items-center gap-2">
+              <PriceInput id="paidPrice" value={paidPrice} onChange={setPaidPrice} placeholder="$0" />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">AR$ (Pesos Argentinos)</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Costo de Repuesto</Label>
+            <div className="flex items-center gap-2">
+              <PriceInput id="partsCost" value={partsCost} onChange={setPartsCost} placeholder="$0" />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">AR$ (Pesos Argentinos)</span>
+            </div>
+          </div>
+        </div>
+        {paidPrice > 0 && (
+          <div className="text-sm">
+            <span className="text-muted-foreground">Utilidad: </span>
+            <span className={`font-semibold ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+              ${profit.toLocaleString("es-AR")}
+            </span>
+          </div>
+        )}
+
+        {/* Tags de falla */}
+        <FaultTagSelector selected={faultTags} onChange={setFaultTags} />
+
+        {/* Técnico + Garantía */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Técnico asignado</Label>
+            <Select value={technicianId} onValueChange={setTechnicianId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sin asignar" />
+              </SelectTrigger>
+              <SelectContent>
+                {technicians.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="warrantyDays">Días de garantía</Label>
+            <Input
+              id="warrantyDays"
+              type="number"
+              min="0"
+              placeholder="Ej: 30, 60, 90"
+              value={warrantyDays}
+              onChange={(e) => setWarrantyDays(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Notas */}
+        <div className="space-y-2">
+          <Label htmlFor="internalNotes">Notas internas</Label>
+          <Textarea
+            id="internalNotes"
+            placeholder="Notas que solo verá el equipo..."
+            value={internalNotes}
+            onChange={(e) => setInternalNotes(e.target.value)}
+            rows={2}
+          />
+        </div>
+
+        {/* Fotos */}
+        <DevicePhotosInput photos={devicePhotos} onChange={setDevicePhotos} />
+
+        <div className="flex gap-2 justify-end">
+          <Button type="button" variant="outline" onClick={() => router.push("/dashboard/ordenes")} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={saving || !clientId || !deviceModel.trim() || !reportedFault.trim() || paidPrice <= 0}>
+            {saving ? (devicePhotos.length > 0 ? "Subiendo fotos..." : "Creando...") : "Crear Orden"}
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
   // Step 1: Cliente
   if (step === 1) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
-        <h2 className="text-2xl font-semibold mb-8 text-center">Seleccionar Cliente</h2>
-        <div className="w-full">
-          <ClientSelector
-            storeId={storeId}
-            selectedId={clientId}
-            onSelect={(c) => {
-              setClientId(c?.id ?? null);
-              setClientName(c?.name ?? "");
-            }}
-          />
+      <div>
+        <div className="flex justify-end"><FormModeSwitch /></div>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
+          <h2 className="text-2xl font-semibold mb-8 text-center">Seleccionar Cliente</h2>
+          <div className="w-full">
+            <ClientSelector
+              storeId={storeId}
+              selectedId={clientId}
+              onSelect={(c) => {
+                setClientId(c?.id ?? null);
+                setClientName(c?.name ?? "");
+              }}
+            />
+          </div>
+          <div className="flex gap-3 mt-8">
+            <Button
+              variant="outline"
+              onClick={() => router.push("/dashboard/ordenes")}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleContinue} disabled={!canContinue()}>
+              Continuar <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <ProgressBar />
         </div>
-        <div className="flex gap-3 mt-8">
-          <Button
-            variant="outline"
-            onClick={() => router.push("/dashboard/ordenes")}
-          >
-            Cancelar
-          </Button>
-          <Button onClick={handleContinue} disabled={!canContinue()}>
-            Continuar <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-        <ProgressBar />
       </div>
     );
   }
@@ -178,20 +312,23 @@ export function OrderForm() {
   // Step 2: Modelo de equipo
   if (step === 2) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
-        <h2 className="text-2xl font-semibold mb-8 text-center">Modelo del Equipo</h2>
-        <div className="w-full" onKeyDown={handleKeyDown}>
-          <DeviceModelInput storeId={storeId} value={deviceModel} onChange={setDeviceModel} />
+      <div>
+        <div className="flex justify-end"><FormModeSwitch /></div>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
+          <h2 className="text-2xl font-semibold mb-8 text-center">Modelo del Equipo</h2>
+          <div className="w-full" onKeyDown={handleKeyDown}>
+            <DeviceModelInput storeId={storeId} value={deviceModel} onChange={setDeviceModel} />
+          </div>
+          <div className="flex gap-3 mt-8">
+            <Button variant="outline" onClick={() => setStep(1)}>
+              <ChevronLeft className="h-4 w-4" /> Volver
+            </Button>
+            <Button onClick={handleContinue} disabled={!canContinue()}>
+              Continuar <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <ProgressBar />
         </div>
-        <div className="flex gap-3 mt-8">
-          <Button variant="outline" onClick={() => setStep(1)}>
-            <ChevronLeft className="h-4 w-4" /> Volver
-          </Button>
-          <Button onClick={handleContinue} disabled={!canContinue()}>
-            Continuar <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-        <ProgressBar />
       </div>
     );
   }
@@ -199,53 +336,83 @@ export function OrderForm() {
   // Step 3: Falla reportada
   if (step === 3) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
-        <h2 className="text-2xl font-semibold mb-8 text-center">Falla Reportada</h2>
-        <div className="w-full space-y-2">
-          <Textarea
-            id="reportedFault"
-            placeholder="Descripción de la falla..."
-            value={reportedFault}
-            onChange={(e) => setReportedFault(e.target.value)}
-            rows={4}
-            autoFocus
-          />
+      <div>
+        <div className="flex justify-end"><FormModeSwitch /></div>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
+          <h2 className="text-2xl font-semibold mb-8 text-center">Falla Reportada</h2>
+          <div className="w-full space-y-2">
+            <Textarea
+              id="reportedFault"
+              placeholder="Descripción de la falla..."
+              value={reportedFault}
+              onChange={(e) => setReportedFault(e.target.value)}
+              rows={4}
+              autoFocus
+            />
+          </div>
+          <div className="flex gap-3 mt-8">
+            <Button variant="outline" onClick={() => setStep(2)}>
+              <ChevronLeft className="h-4 w-4" /> Volver
+            </Button>
+            <Button onClick={handleContinue} disabled={!canContinue()}>
+              Continuar <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <ProgressBar />
         </div>
-        <div className="flex gap-3 mt-8">
-          <Button variant="outline" onClick={() => setStep(2)}>
-            <ChevronLeft className="h-4 w-4" /> Volver
-          </Button>
-          <Button onClick={handleContinue} disabled={!canContinue()}>
-            Continuar <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-        <ProgressBar />
       </div>
     );
   }
 
-  // Step 4: Precio pagado
+  // Step 4: Precio pagado + costo repuesto
   if (step === 4) {
+    const profit = paidPrice - partsCost;
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
-        <h2 className="text-2xl font-semibold mb-8 text-center">Precio Pagado</h2>
-        <div className="w-full max-w-xs" onKeyDown={handleKeyDown}>
-          <PriceInput
-            id="paidPrice"
-            value={paidPrice}
-            onChange={setPaidPrice}
-            placeholder="$0"
-          />
+      <div>
+        <div className="flex justify-end"><FormModeSwitch /></div>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
+          <h2 className="text-2xl font-semibold mb-8 text-center">Precio Pagado</h2>
+          <div className="w-full max-w-xs space-y-4" onKeyDown={handleKeyDown}>
+            <div className="flex items-center gap-2">
+              <PriceInput
+                id="paidPrice"
+                value={paidPrice}
+                onChange={setPaidPrice}
+                placeholder="$0"
+              />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">AR$ (Pesos Argentinos)</span>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="partsCost" className="text-sm text-muted-foreground">Costo de repuesto (opcional)</Label>
+              <div className="flex items-center gap-2">
+                <PriceInput
+                  id="partsCost"
+                  value={partsCost}
+                  onChange={setPartsCost}
+                  placeholder="$0"
+                />
+                <span className="text-sm text-muted-foreground whitespace-nowrap">AR$ (Pesos Argentinos)</span>
+              </div>
+            </div>
+            {paidPrice > 0 && (
+              <div className="text-sm text-center pt-2 border-t">
+                <span className="text-muted-foreground">Utilidad: </span>
+                <span className={`font-semibold ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  ${profit.toLocaleString("es-AR")}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-3 mt-8">
+            <Button variant="outline" onClick={() => setStep(3)}>
+              <ChevronLeft className="h-4 w-4" /> Volver
+            </Button>
+            <Button onClick={handleContinue} disabled={!canContinue()}>
+              Continuar <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <ProgressBar />
         </div>
-        <div className="flex gap-3 mt-8">
-          <Button variant="outline" onClick={() => setStep(3)}>
-            <ChevronLeft className="h-4 w-4" /> Volver
-          </Button>
-          <Button onClick={handleContinue} disabled={!canContinue()}>
-            Continuar <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-        <ProgressBar />
       </div>
     );
   }
@@ -288,7 +455,7 @@ export function OrderForm() {
             </button>
           </div>
 
-          <div className="flex justify-between items-center col-span-2">
+          <div className="flex justify-between items-center col-span-2 border-b pb-2">
             <div>
               <span className="text-muted-foreground">Precio pagado:</span>
               <span className="ml-2 font-medium">${paidPrice.toLocaleString()}</span>
@@ -296,6 +463,27 @@ export function OrderForm() {
             <button type="button" onClick={() => setStep(4)} className="text-muted-foreground hover:text-foreground">
               <Pencil className="h-4 w-4" />
             </button>
+          </div>
+
+          {partsCost > 0 && (
+            <div className="flex justify-between items-center col-span-2 border-b pb-2">
+              <div>
+                <span className="text-muted-foreground">Costo repuesto:</span>
+                <span className="ml-2 font-medium">${partsCost.toLocaleString()}</span>
+              </div>
+              <button type="button" onClick={() => setStep(4)} className="text-muted-foreground hover:text-foreground">
+                <Pencil className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          <div className="flex justify-between items-center col-span-2">
+            <div>
+              <span className="text-muted-foreground">Utilidad:</span>
+              <span className={`ml-2 font-semibold ${(paidPrice - partsCost) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                ${(paidPrice - partsCost).toLocaleString()}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -358,9 +546,8 @@ export function OrderForm() {
         </Button>
       </div>
 
-      <div className="w-full mt-6">
-        <Progress value={100} className="h-2" />
-        <p className="text-xs text-muted-foreground text-center mt-1">Paso 5 de 5</p>
+      <div className="flex justify-center">
+        <ProgressBar />
       </div>
     </form>
   );

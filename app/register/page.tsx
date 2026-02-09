@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 type Action = "create" | "join";
@@ -22,7 +23,6 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
   const [action, setAction] = useState<Action>("create");
   const [storeName, setStoreName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
@@ -43,7 +43,6 @@ export default function RegisterPage() {
           name,
           email,
           password,
-          phone: phone || undefined,
           action,
           storeName: action === "create" ? storeName : undefined,
           inviteCode: action === "join" ? inviteCode : undefined,
@@ -59,7 +58,7 @@ export default function RegisterPage() {
       }
 
       localStorage.setItem("user", JSON.stringify(data.user));
-      router.push("/dashboard");
+      router.push(data.user.role === "OWNER" ? "/onboarding" : "/dashboard");
     } catch {
       setError("Error de conexión");
       setLoading(false);
@@ -67,14 +66,35 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen bg-neutral-50">
+      {/* Logo panel - izquierda */}
+      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-neutral-900">
+        <Image src="/tipologo.png" alt="Koldesk" width={360} height={96} className="invert" />
+      </div>
+
+      {/* Form panel - derecha */}
+      <div className="flex w-full lg:w-1/2 items-center justify-center px-4 py-8">
+      <Card className="w-full max-w-md border-0 shadow-none lg:border lg:shadow-sm">
         <CardHeader className="space-y-1 text-center">
+          <Image
+            src="/tipologo.png"
+            alt="KOLDESK"
+            width={160}
+            height={40}
+            className="mx-auto lg:hidden"
+          />
           <CardTitle className="text-2xl font-bold tracking-tight">
             Crear cuenta
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Registrate para empezar a usar Koldesk
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Registrarte ahora te permitira utilizar nuestra prueba gratuita, para activar todas las funcionalidades habla con nuestro{" "}
+            <Link href="/contact" className="underline font-medium text-primary">
+              equipo de ventas
+            </Link>
+            .
           </p>
         </CardHeader>
         <CardContent>
@@ -131,17 +151,6 @@ export default function RegisterPage() {
                   )}
                 </button>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Teléfono (opcional)</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="+54 11 1234-5678"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
             </div>
 
             {/* Selector de acción */}
@@ -217,6 +226,7 @@ export default function RegisterPage() {
           </form>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

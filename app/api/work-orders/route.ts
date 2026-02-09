@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
       storeId,
       internalNotes,
       warrantyDays,
+      partsCost,
     } = body;
 
     if (!deviceModel || !reportedFault || !clientId || !createdById || !storeId) {
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
         storeId,
         internalNotes: internalNotes ?? null,
         warrantyDays: warrantyDays ?? null,
+        partsCost: partsCost ?? 0,
       },
       include: {
         client: { select: { id: true, name: true, phone: true } },

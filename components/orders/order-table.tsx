@@ -35,6 +35,7 @@ export function OrderTable({ orders }: OrderTableProps) {
           <TableHead>Técnico</TableHead>
           <TableHead>Estado</TableHead>
           <TableHead className="text-right">Precio</TableHead>
+          <TableHead className="text-right">Utilidad</TableHead>
           <TableHead>Fecha</TableHead>
         </TableRow>
       </TableHeader>
@@ -64,6 +65,18 @@ export function OrderTable({ orders }: OrderTableProps) {
             <TableCell className="text-right text-neutral-600">
               {order.agreedPrice != null
                 ? `$${order.agreedPrice.toLocaleString("es-AR")}`
+                : "—"}
+            </TableCell>
+            <TableCell className="text-right">
+              {order.agreedPrice != null
+                ? (() => {
+                    const profit = order.agreedPrice! - (order.partsCost ?? 0);
+                    return (
+                      <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
+                        ${profit.toLocaleString("es-AR")}
+                      </span>
+                    );
+                  })()
                 : "—"}
             </TableCell>
             <TableCell className="text-neutral-500 text-sm">

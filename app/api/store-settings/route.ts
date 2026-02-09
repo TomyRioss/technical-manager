@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(settings);
   } catch (err) {
     console.error("GET /api/store-settings error:", err);
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+    return NextResponse.json({ error: "Error al obtener configuración. Intentá de nuevo." }, { status: 500 });
   }
 }
 
@@ -114,8 +114,12 @@ export async function PUT(req: NextRequest) {
     });
 
     return NextResponse.json(settings);
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("PUT /api/store-settings error:", err);
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+    if (err && typeof err === "object" && "code" in err) {
+      const code = (err as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "El slug ya está en uso por otra tienda" }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Error al guardar configuración. Intentá de nuevo." }, { status: 500 });
   }
 }

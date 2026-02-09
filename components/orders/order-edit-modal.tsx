@@ -43,6 +43,7 @@ export function OrderEditModal({ order, open, onClose, onSaved }: OrderEditModal
   const [reportedFault, setReportedFault] = useState(order.reportedFault);
   const [faultTags, setFaultTags] = useState<string[]>(order.faultTags);
   const [agreedPrice, setAgreedPrice] = useState<number>(order.agreedPrice ?? 0);
+  const [partsCost, setPartsCost] = useState<number>(order.partsCost ?? 0);
   const [technicianId, setTechnicianId] = useState<string>(order.technicianId ?? "");
   const [internalNotes, setInternalNotes] = useState(order.internalNotes ?? "");
   const [warrantyDays, setWarrantyDays] = useState(order.warrantyDays?.toString() ?? "");
@@ -68,6 +69,7 @@ export function OrderEditModal({ order, open, onClose, onSaved }: OrderEditModal
       setReportedFault(order.reportedFault);
       setFaultTags(order.faultTags);
       setAgreedPrice(order.agreedPrice ?? 0);
+      setPartsCost(order.partsCost ?? 0);
       setTechnicianId(order.technicianId ?? "");
       setInternalNotes(order.internalNotes ?? "");
       setWarrantyDays(order.warrantyDays?.toString() ?? "");
@@ -87,6 +89,7 @@ export function OrderEditModal({ order, open, onClose, onSaved }: OrderEditModal
         reportedFault: reportedFault.trim(),
         faultTags,
         agreedPrice: agreedPrice || null,
+        partsCost: partsCost || 0,
         technicianId: technicianId || null,
         internalNotes: internalNotes.trim() || null,
         ...(!isDelivered && { warrantyDays: warrantyDays ? parseInt(warrantyDays) : null }),
@@ -133,6 +136,27 @@ export function OrderEditModal({ order, open, onClose, onSaved }: OrderEditModal
                 placeholder="$0"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="editPartsCost">Costo de repuesto</Label>
+              <PriceInput
+                id="editPartsCost"
+                value={partsCost}
+                onChange={setPartsCost}
+                placeholder="$0"
+              />
+            </div>
+          </div>
+
+          {agreedPrice > 0 && (
+            <div className="text-sm px-1">
+              <span className="text-muted-foreground">Utilidad: </span>
+              <span className={`font-semibold ${(agreedPrice - partsCost) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                ${(agreedPrice - partsCost).toLocaleString("es-AR")}
+              </span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Técnico asignado</Label>
               <Select value={technicianId} onValueChange={setTechnicianId}>

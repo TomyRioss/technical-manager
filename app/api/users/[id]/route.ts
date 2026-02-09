@@ -27,9 +27,13 @@ export async function PATCH(
     });
 
     return NextResponse.json(user);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error updating user:", error);
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2025") return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al actualizar usuario. Intentá de nuevo." }, { status: 500 });
   }
 }
 
@@ -62,8 +66,12 @@ export async function DELETE(
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error deleting user:", error);
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2025") return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al eliminar usuario. Intentá de nuevo." }, { status: 500 });
   }
 }

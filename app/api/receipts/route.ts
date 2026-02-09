@@ -28,8 +28,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "storeId requerido" }, { status: 400 });
   }
 
+  const archived = req.nextUrl.searchParams.get("archived") === "true";
+
   const receipts = await prisma.receipt.findMany({
-    where: { storeId, isActive: true },
+    where: { storeId, isActive: !archived },
     include: { items: { include: { item: true } } },
     orderBy: { createdAt: "desc" },
   });

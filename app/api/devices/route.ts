@@ -78,7 +78,12 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(brand);
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("POST /api/devices error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe una marca con ese nombre" }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Error al crear marca. Intentá de nuevo." }, { status: 500 });
   }
 }

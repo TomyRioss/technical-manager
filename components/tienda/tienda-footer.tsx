@@ -53,7 +53,7 @@ export function TiendaFooter({
           <p className="text-sm text-neutral-400">
             Desarrollado por{" "}
             <a
-              href={process.env.NEXT_PUBLIC_KOLDESK_URL}
+              href={process.env.NEXT_PUBLIC_APP_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="text-neutral-600 hover:text-neutral-900 transition-colors underline"

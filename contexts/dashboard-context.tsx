@@ -36,8 +36,10 @@ interface DashboardContextType {
   setProductImage: (id: string, imageUrl: string) => void;
 
   receipts: Receipt[];
+  archivedReceipts: Receipt[];
   addReceipt: (receipt: Omit<Receipt, "id" | "receiptNumber" | "createdAt">) => Promise<void>;
   deleteReceipt: (id: string) => Promise<void>;
+  archiveReceipt: (id: string) => Promise<void>;
   getReceipt: (id: string) => Receipt | undefined;
 
   workOrders: WorkOrder[];
@@ -64,6 +66,7 @@ interface DashboardProviderProps {
 export function DashboardProvider({ children, storeId, storeName, storeSlug, storePlan, userId, userRole }: DashboardProviderProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [archivedReceipts, setArchivedReceipts] = useState<Receipt[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [commissions, setCommissions] = useState<CommissionConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +108,18 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
     );
   }, [storeId]);
 
+  const fetchArchivedReceipts = useCallback(async () => {
+    const res = await fetch(`/api/receipts?storeId=${storeId}&archived=true`);
+    if (!res.ok) return;
+    const data = await res.json();
+    setArchivedReceipts(
+      data.map((r: Record<string, unknown>) => ({
+        ...r,
+        createdAt: new Date(r.createdAt as string),
+      }))
+    );
+  }, [storeId]);
+
   const fetchWorkOrders = useCallback(async () => {
     const res = await fetch(`/api/work-orders?storeId=${storeId}`);
     if (!res.ok) return;
@@ -122,11 +137,11 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
   useEffect(() => {
     async function load() {
       setLoading(true);
-      await Promise.all([fetchProducts(), fetchReceipts(), fetchWorkOrders(), fetchCommissions()]);
+      await Promise.all([fetchProducts(), fetchReceipts(), fetchArchivedReceipts(), fetchWorkOrders(), fetchCommissions()]);
       setLoading(false);
     }
     load();
-  }, [fetchProducts, fetchReceipts, fetchWorkOrders, fetchCommissions]);
+  }, [fetchProducts, fetchReceipts, fetchArchivedReceipts, fetchWorkOrders, fetchCommissions]);
 
   // --- Products ---
 
@@ -299,13 +314,40 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
   }
 
   async function deleteReceipt(id: string) {
+    const receipt = receipts.find((r) => r.id === id) || archivedReceipts.find((r) => r.id === id);
     const res = await fetch(`/api/receipts/${id}`, { method: "DELETE" });
     if (!res.ok) return;
+
+    // Remove from whichever list it belongs to
     setReceipts((prev) => prev.filter((r) => r.id !== id));
+    setArchivedReceipts((prev) => prev.filter((r) => r.id !== id));
+
+    // Restore local stock
+    if (receipt) {
+      setProducts((prev) =>
+        prev.map((p) => {
+          const restored = receipt.items
+            .filter((i) => i.productId === p.id)
+            .reduce((sum, i) => sum + i.quantity, 0);
+          if (restored === 0) return p;
+          return { ...p, stock: p.stock + restored };
+        })
+      );
+    }
+  }
+
+  async function archiveReceipt(id: string) {
+    const res = await fetch(`/api/receipts/${id}`, { method: "PATCH" });
+    if (!res.ok) return;
+    const receipt = receipts.find((r) => r.id === id);
+    setReceipts((prev) => prev.filter((r) => r.id !== id));
+    if (receipt) {
+      setArchivedReceipts((prev) => [receipt, ...prev]);
+    }
   }
 
   function getReceipt(id: string) {
-    return receipts.find((r) => r.id === id);
+    return receipts.find((r) => r.id === id) || archivedReceipts.find((r) => r.id === id);
   }
 
   return (
@@ -325,8 +367,10 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
         getProduct,
         setProductImage,
         receipts,
+        archivedReceipts,
         addReceipt,
         deleteReceipt,
+        archiveReceipt,
         getReceipt,
         workOrders,
         commissions,

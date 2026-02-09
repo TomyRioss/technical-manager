@@ -106,6 +106,26 @@ export function OrderDetail({ order, onRefresh }: OrderDetailProps) {
                 </p>
               </div>
             </div>
+            {order.partsCost != null && order.partsCost > 0 && (
+              <div className="flex items-center gap-2 text-sm">
+                <LuDollarSign className="h-4 w-4 text-neutral-400" />
+                <div>
+                  <p className="text-xs text-neutral-500">Costo repuesto</p>
+                  <p className="font-medium">${order.partsCost.toLocaleString("es-AR")}</p>
+                </div>
+              </div>
+            )}
+            {order.agreedPrice != null && (
+              <div className="flex items-center gap-2 text-sm">
+                <LuDollarSign className="h-4 w-4 text-neutral-400" />
+                <div>
+                  <p className="text-xs text-neutral-500">Utilidad</p>
+                  <p className={`font-medium ${(order.agreedPrice - (order.partsCost ?? 0)) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    ${(order.agreedPrice - (order.partsCost ?? 0)).toLocaleString("es-AR")}
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-2 text-sm">
               <LuCalendar className="h-4 w-4 text-neutral-400" />
               <div>

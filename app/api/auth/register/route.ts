@@ -145,10 +145,24 @@ export async function POST(req: NextRequest) {
         storeName: settings.store.name,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("POST /api/auth/register error:", error);
+
+    // Prisma P2002: unique constraint violation
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code: string }).code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "Ya existe una cuenta con ese email" },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Error del servidor" },
+      { error: "Error del servidor. Intentá de nuevo más tarde." },
       { status: 500 }
     );
   }

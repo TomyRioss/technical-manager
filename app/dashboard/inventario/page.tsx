@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LuPlus, LuPencil, LuTrash2, LuSearch, LuUpload, LuX, LuTag } from "react-icons/lu";
+import { LuPlus, LuPencil, LuTrash2, LuSearch, LuUpload, LuX, LuTag, LuChevronLeft, LuChevronRight, LuArrowUp, LuArrowDown, LuArrowUpDown, LuFilter } from "react-icons/lu";
 import { Loader2 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { BulkImportDialog } from "@/components/inventario/bulk-import-dialog";
@@ -54,6 +54,16 @@ export default function InventarioPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "pending">("all");
   const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortKey, setSortKey] = useState<"name" | "price" | "stock" | "active" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
+
+  const availableCategories = Array.from(
+    new Set(products.map((p) => p.categoryName).filter(Boolean))
+  ).sort() as string[];
 
   const filtered = products
     .filter((p) => {
@@ -61,11 +71,28 @@ export default function InventarioPage() {
       if (statusFilter === "pending") return !p.active && hasMissingData(p);
       return true;
     })
+    .filter((p) => {
+      if (selectedCategories.size === 0) return true;
+      return p.categoryName && selectedCategories.has(p.categoryName);
+    })
     .filter(
-    (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku.toLowerCase().includes(search.toLowerCase())
-  );
+      (p) =>
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.sku.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (!sortKey) return 0;
+      const dir = sortDir === "asc" ? 1 : -1;
+      if (sortKey === "name") return a.name.localeCompare(b.name) * dir;
+      if (sortKey === "price") return (a.price - b.price) * dir;
+      if (sortKey === "stock") return (a.stock - b.stock) * dir;
+      if (sortKey === "active") return (Number(a.active) - Number(b.active)) * dir;
+      return 0;
+    });
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedProducts = filtered.slice(startIndex, startIndex + itemsPerPage);
 
   const allSelected = filtered.length > 0 && filtered.every((p) => selectedIds.has(p.id));
   const someSelected = selectedIds.size > 0;
@@ -104,6 +131,44 @@ export default function InventarioPage() {
     setSelectedIds(new Set());
   }
 
+  function handleSort(key: "name" | "price" | "stock" | "active") {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDir("asc");
+    } else if (sortDir === "asc") {
+      setSortDir("desc");
+    } else {
+      setSortKey(null);
+      setSortDir("asc");
+    }
+    setCurrentPage(1);
+  }
+
+  function toggleCategory(cat: string) {
+    setSelectedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+    setCurrentPage(1);
+  }
+
+  function removeCategory(cat: string) {
+    setSelectedCategories((prev) => {
+      const next = new Set(prev);
+      next.delete(cat);
+      return next;
+    });
+    setCurrentPage(1);
+  }
+
+  function SortIcon({ column }: { column: "name" | "price" | "stock" | "active" }) {
+    if (sortKey !== column) return <LuArrowUpDown className="ml-1 h-3.5 w-3.5 text-neutral-400" />;
+    if (sortDir === "asc") return <LuArrowUp className="ml-1 h-3.5 w-3.5" />;
+    return <LuArrowDown className="ml-1 h-3.5 w-3.5" />;
+  }
+
   async function handleBulkCategoryChange(categoryId: string | null) {
     await Promise.all(
       Array.from(selectedIds).map((id) => updateProductCategory(id, categoryId))
@@ -140,12 +205,13 @@ export default function InventarioPage() {
           <Input
             placeholder="Buscar por nombre, SKU..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             className="pl-9"
           />
         </div>
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "all" | "active" | "pending")}>
-          <SelectTrigger className="w-40">
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as "all" | "active" | "pending"); setCurrentPage(1); }}>
+          <SelectTrigger className="w-auto gap-0">
+            <span className="text-neutral-500">Estado:&nbsp;</span>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -154,7 +220,61 @@ export default function InventarioPage() {
             <SelectItem value="pending">Pendientes</SelectItem>
           </SelectContent>
         </Select>
+        {availableCategories.length > 0 && (
+          <Popover open={categoryFilterOpen} onOpenChange={setCategoryFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <LuFilter className="h-4 w-4" />
+                Categorías
+                {selectedCategories.size > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
+                    {selectedCategories.size}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2" align="start">
+              <div className="space-y-1 max-h-60 overflow-y-auto">
+                {availableCategories.map((cat) => (
+                  <label
+                    key={cat}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-neutral-100 cursor-pointer text-sm"
+                  >
+                    <Checkbox
+                      checked={selectedCategories.has(cat)}
+                      onCheckedChange={() => toggleCategory(cat)}
+                    />
+                    {cat}
+                  </label>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
+
+      {/* Category tags */}
+      {selectedCategories.size > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {Array.from(selectedCategories).map((cat) => (
+            <Badge key={cat} variant="secondary" className="gap-1 pr-1">
+              {cat}
+              <button
+                onClick={() => removeCategory(cat)}
+                className="ml-0.5 rounded-full hover:bg-neutral-300 p-0.5"
+              >
+                <LuX className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+          <button
+            onClick={() => { setSelectedCategories(new Set()); setCurrentPage(1); }}
+            className="text-xs text-neutral-500 hover:text-neutral-700"
+          >
+            Limpiar filtros
+          </button>
+        </div>
+      )}
 
       {/* Table */}
       {loading ? (
@@ -180,17 +300,25 @@ export default function InventarioPage() {
                   />
                 </TableHead>
                 <TableHead className="w-12">Img</TableHead>
-                <TableHead>Nombre</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort("name")}>
+                  <span className="inline-flex items-center">Nombre<SortIcon column="name" /></span>
+                </TableHead>
                 <TableHead>Categoría</TableHead>
                 <TableHead>SKU</TableHead>
-                <TableHead className="text-right">Precio</TableHead>
-                <TableHead className="text-right">Stock</TableHead>
-                <TableHead>Estado</TableHead>
+                <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("price")}>
+                  <span className="inline-flex items-center justify-end w-full">Precio<SortIcon column="price" /></span>
+                </TableHead>
+                <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("stock")}>
+                  <span className="inline-flex items-center justify-end w-full">Stock<SortIcon column="stock" /></span>
+                </TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort("active")}>
+                  <span className="inline-flex items-center">Estado<SortIcon column="active" /></span>
+                </TableHead>
                 <TableHead className="w-20" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((product) => (
+              {paginatedProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>
                     <Checkbox
@@ -282,6 +410,39 @@ export default function InventarioPage() {
               ))}
             </TableBody>
           </Table>
+        </div>
+      )}
+
+      {/* Paginación */}
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-neutral-500">Mostrar</span>
+            <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
+              <SelectTrigger className="w-20 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="75">75</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-neutral-500">por página</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>
+              <LuChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm text-neutral-500 px-2">{currentPage} / {totalPages}</span>
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => p + 1)}>
+              <LuChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <span className="text-sm text-neutral-500">
+            Mostrando {startIndex + 1}–{Math.min(startIndex + itemsPerPage, filtered.length)} de {filtered.length} productos
+          </span>
         </div>
       )}
 

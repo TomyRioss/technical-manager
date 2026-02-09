@@ -14,7 +14,7 @@ const MONTH_NAMES = [
 
 export default function SalesPage() {
   const { receipts, workOrders } = useDashboard();
-  const [openReceiptId, setOpenReceiptId] = useState<string | null>(null);
+  const [openReceiptIds, setOpenReceiptIds] = useState<Set<string>>(new Set());
 
   const now = new Date();
   const currentMonth = now.getMonth();
@@ -48,7 +48,12 @@ export default function SalesPage() {
   const totalMonth = receiptsTotal + ordersTotal;
 
   const toggle = (id: string) =>
-    setOpenReceiptId((prev) => (prev === id ? null : id));
+    setOpenReceiptIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -108,13 +113,13 @@ export default function SalesPage() {
                       </span>
                       <LuChevronDown
                         className={`h-3.5 w-3.5 text-neutral-500 transition-transform ${
-                          openReceiptId === r.id ? "rotate-180" : ""
+                          openReceiptIds.has(r.id) ? "rotate-180" : ""
                         }`}
                       />
                     </div>
                   </button>
 
-                  {openReceiptId === r.id && (
+                  {openReceiptIds.has(r.id) && (
                     <div className="border-t border-neutral-100 px-3 pb-2">
                       <ul className="divide-y divide-neutral-50">
                         {r.items.map((item) => (

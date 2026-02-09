@@ -13,6 +13,7 @@ import { CategorySelect } from "@/components/ui/category-select";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
 import { LuUpload } from "react-icons/lu";
 
 function generateSku(): string {
@@ -38,6 +39,7 @@ const emptyProduct: Omit<Product, "id"> = {
 export default function CreateProductPage() {
   const router = useRouter();
   const { storeId, addProduct, setProductImage } = useDashboard();
+  const [formMode, setFormMode] = useState<"steps" | "complete">("steps");
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(emptyProduct);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -122,32 +124,181 @@ export default function CreateProductPage() {
 
   const categoryName = categories.find(c => c.id === form.categoryId)?.name || "";
 
-  // Step 1: Nombre
-  if (step === 1) {
+  const FormModeSwitch = () => (
+    <div className="flex items-center gap-2 text-sm">
+      <span className="text-muted-foreground">Formulario:</span>
+      <span className={formMode === "complete" ? "font-medium" : "text-muted-foreground"}>Completo</span>
+      <Switch checked={formMode === "steps"} onCheckedChange={(v) => setFormMode(v ? "steps" : "complete")} />
+      <span className={formMode === "steps" ? "font-medium" : "text-muted-foreground"}>Pasos</span>
+    </div>
+  );
+
+  // Complete mode
+  if (formMode === "complete") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
-        <h2 className="text-2xl font-semibold mb-8 text-center">Nombre del Producto</h2>
-        <div className="w-full" onKeyDown={handleKeyDown}>
+      <div className="space-y-6 max-w-2xl mx-auto">
+        <div className="flex justify-end">
+          <FormModeSwitch />
+        </div>
+
+        {/* Nombre */}
+        <div className="space-y-2">
+          <Label>Nombre del Producto *</Label>
           <Input
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="Nombre del producto"
             autoFocus
-            className="text-center"
           />
         </div>
-        <div className="flex gap-3 mt-8">
-          <Button
-            variant="outline"
-            onClick={() => router.push("/dashboard/inventario")}
-          >
+
+        {/* Precios */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground flex items-center gap-1">
+              Precio de Costo (opcional)
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-muted text-muted-foreground text-xs cursor-help border border-gray-400">?</span>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-gray-700 text-white max-w-xs">
+                    Precio al que el proveedor te vende este producto. Se usa para calcular tus utilidades netas mensuales.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </Label>
+            <div className="flex items-center gap-2">
+              <PriceInput
+                value={form.costPrice || 0}
+                onChange={(costPrice) => setForm((f) => ({ ...f, costPrice }))}
+                placeholder="$0"
+              />
+              <span className="text-muted-foreground text-sm whitespace-nowrap">en AR$</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">Precio de Venta *</Label>
+            <div className="flex items-center gap-2">
+              <PriceInput
+                value={form.price}
+                onChange={(price) => setForm((f) => ({ ...f, price }))}
+                placeholder="$0"
+              />
+              <span className="text-muted-foreground text-sm whitespace-nowrap">en AR$</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Stock */}
+        <div className="space-y-2">
+          <Label>Stock Inicial *</Label>
+          <div className="flex items-center gap-2 max-w-xs">
+            <Input
+              type="number"
+              min={0}
+              value={form.stock || ""}
+              onChange={(e) => setForm((f) => ({ ...f, stock: parseInt(e.target.value) || 0 }))}
+              placeholder="0"
+            />
+            <span className="text-muted-foreground text-sm">unidades</span>
+          </div>
+        </div>
+
+        {/* Categoría */}
+        <div className="space-y-2">
+          <Label>Categoría *</Label>
+          <div className="max-w-xs">
+            <CategorySelect
+              storeId={storeId}
+              value={form.categoryId || null}
+              onChange={(categoryId) => setForm((f) => ({ ...f, categoryId: categoryId || undefined }))}
+            />
+          </div>
+        </div>
+
+        {/* Imagen */}
+        <div className="space-y-2">
+          <Label>Imagen</Label>
+          {imagePreview ? (
+            <div className="flex items-center gap-4">
+              <img src={imagePreview} alt="Preview" className="h-16 w-16 rounded object-cover" />
+              <Input type="file" accept="image/*" onChange={handleImageChange} className="max-w-56" />
+            </div>
+          ) : (
+            <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-neutral-300 py-6 text-sm text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700">
+              <LuUpload className="h-6 w-6" />
+              <span>Subir archivo</span>
+              <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+            </label>
+          )}
+        </div>
+
+        {/* SKU */}
+        <div className="space-y-2">
+          <Label htmlFor="sku">SKU / Código</Label>
+          <Input
+            id="sku"
+            value={form.sku}
+            onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
+            placeholder="ABC-001"
+          />
+        </div>
+
+        {/* Activo */}
+        <div className="flex items-center space-x-2">
+          <Label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.active}
+              onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
+              className="h-4 w-4 rounded border-neutral-300"
+            />
+            Producto activo
+          </Label>
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" onClick={() => router.push("/dashboard/inventario")} disabled={saving}>
             Cancelar
           </Button>
-          <Button onClick={handleContinue} disabled={!canContinue()}>
-            Continuar <ChevronRight className="h-4 w-4" />
+          <Button onClick={handleSave} disabled={saving || !form.name.trim() || form.price <= 0 || !form.categoryId}>
+            {saving ? "Guardando..." : "Agregar producto"}
           </Button>
         </div>
-        <ProgressBar />
+      </div>
+    );
+  }
+
+  // Step 1: Nombre
+  if (step === 1) {
+    return (
+      <div>
+        <div className="flex justify-end"><FormModeSwitch /></div>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
+          <h2 className="text-2xl font-semibold mb-8 text-center">Nombre del Producto</h2>
+          <div className="w-full" onKeyDown={handleKeyDown}>
+            <Input
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Nombre del producto"
+              autoFocus
+              className="text-center"
+            />
+          </div>
+          <div className="flex gap-3 mt-8">
+            <Button
+              variant="outline"
+              onClick={() => router.push("/dashboard/inventario")}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleContinue} disabled={!canContinue()}>
+              Continuar <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <ProgressBar />
+        </div>
       </div>
     );
   }
@@ -155,7 +306,9 @@ export default function CreateProductPage() {
   // Step 2: Precios
   if (step === 2) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
+      <div>
+        <div className="flex justify-end"><FormModeSwitch /></div>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
         <h2 className="text-2xl font-semibold mb-8 text-center">Precios</h2>
         <div className="w-full max-w-md space-y-4" onKeyDown={handleKeyDown}>
           <div className="space-y-2">
@@ -205,6 +358,7 @@ export default function CreateProductPage() {
           </Button>
         </div>
         <ProgressBar />
+        </div>
       </div>
     );
   }
@@ -212,7 +366,9 @@ export default function CreateProductPage() {
   // Step 3: Stock
   if (step === 3) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
+      <div>
+        <div className="flex justify-end"><FormModeSwitch /></div>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
         <h2 className="text-2xl font-semibold mb-8 text-center">Stock Inicial</h2>
         <div className="w-full max-w-xs flex items-center gap-2" onKeyDown={handleKeyDown}>
           <Input
@@ -240,6 +396,7 @@ export default function CreateProductPage() {
           </Button>
         </div>
         <ProgressBar />
+        </div>
       </div>
     );
   }
@@ -247,24 +404,27 @@ export default function CreateProductPage() {
   // Step 4: Categoría
   if (step === 4) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
-        <h2 className="text-2xl font-semibold mb-8 text-center">Categoría</h2>
-        <div className="w-full max-w-xs">
-          <CategorySelect
-            storeId={storeId}
-            value={form.categoryId || null}
-            onChange={(categoryId) => setForm((f) => ({ ...f, categoryId: categoryId || undefined }))}
-          />
+      <div>
+        <div className="flex justify-end"><FormModeSwitch /></div>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto px-4">
+          <h2 className="text-2xl font-semibold mb-8 text-center">Categoría</h2>
+          <div className="w-full max-w-xs">
+            <CategorySelect
+              storeId={storeId}
+              value={form.categoryId || null}
+              onChange={(categoryId) => setForm((f) => ({ ...f, categoryId: categoryId || undefined }))}
+            />
+          </div>
+          <div className="flex gap-3 mt-8">
+            <Button variant="outline" onClick={() => setStep(3)}>
+              <ChevronLeft className="h-4 w-4" /> Volver
+            </Button>
+            <Button onClick={handleContinue} disabled={!canContinue()}>
+              Continuar <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <ProgressBar />
         </div>
-        <div className="flex gap-3 mt-8">
-          <Button variant="outline" onClick={() => setStep(3)}>
-            <ChevronLeft className="h-4 w-4" /> Volver
-          </Button>
-          <Button onClick={handleContinue} disabled={!canContinue()}>
-            Continuar <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-        <ProgressBar />
       </div>
     );
   }
@@ -402,9 +562,8 @@ export default function CreateProductPage() {
         </Button>
       </div>
 
-      <div className="w-full mt-6">
-        <Progress value={100} className="h-2" />
-        <p className="text-xs text-muted-foreground text-center mt-1">Paso 5 de 5</p>
+      <div className="flex justify-center">
+        <ProgressBar />
       </div>
     </div>
   );

@@ -86,7 +86,17 @@ export function BrandingForm() {
     fetchSettings();
   }, [storeId, storeName]);
 
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const allowedLogoTypes = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+
   async function handleLogoUpload(file: File) {
+    setLogoError(null);
+
+    if (!allowedLogoTypes.includes(file.type)) {
+      setLogoError("Formato no soportado. Usá PNG, JPG, WebP o SVG.");
+      return;
+    }
+
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
@@ -96,6 +106,8 @@ export function BrandingForm() {
     if (res.ok) {
       const { url } = await res.json();
       setLogoUrl(url);
+    } else {
+      setLogoError("Error al subir el logo. Intentá de nuevo.");
     }
     setUploading(false);
   }
@@ -185,7 +197,7 @@ export function BrandingForm() {
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept=".png,.jpg,.jpeg,.webp,.svg"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -193,6 +205,7 @@ export function BrandingForm() {
             }}
           />
         </div>
+        {logoError && <p className="text-sm text-red-600">{logoError}</p>}
       </div>
 
       <div className="space-y-2">
@@ -205,7 +218,7 @@ export function BrandingForm() {
           required
         />
         <p className="text-xs text-neutral-500">
-          Seguimiento: https://kudesk.com/{slug || "mi-local"} — Tienda: https://kudesk.com/{slug || "mi-local"}/tienda
+          Seguimiento: https://koldesk.com/{slug || "mi-local"} — Tienda: https://koldesk.com/{slug || "mi-local"}/tienda
         </p>
       </div>
 

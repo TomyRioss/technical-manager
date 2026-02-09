@@ -30,7 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LuUpload, LuCircleAlert, LuDownload } from "react-icons/lu";
-import { parseFile, type ParsedItem, type ParseResult } from "@/lib/parse-import";
+import { parseFile, mergeInternalDuplicates, type ParsedItem, type ParseResult } from "@/lib/parse-import";
 import { useDashboard } from "@/contexts/dashboard-context";
 import { formatPrice } from "@/lib/utils";
 
@@ -250,6 +250,14 @@ export function BulkImportDialog({ open, onOpenChange }: BulkImportDialogProps) 
     setActiveDuplicates(new Set());
   }, [activeDuplicates]);
 
+  const handleMergeDuplicates = useCallback(async () => {
+    const merged = mergeInternalDuplicates(items);
+    setItems(merged);
+    setEditableSkuIndices(new Set());
+    recalculateInternalDuplicates(merged);
+    await checkDuplicateSkus(merged);
+  }, [items, recalculateInternalDuplicates, checkDuplicateSkus]);
+
   const pendingCount = items.filter((i) => !i.salePrice).length;
   const duplicateCount = items.filter((i) => activeDuplicates.has(i.sku)).length;
   const internalDuplicateCount = internalDuplicates.size;
@@ -367,6 +375,21 @@ export function BulkImportDialog({ open, onOpenChange }: BulkImportDialogProps) 
                 )}
               </div>
             </div>
+            {internalDuplicateCount > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-3 flex items-center justify-between">
+                <p className="text-sm text-yellow-700">
+                  {internalDuplicateCount} SKU{internalDuplicateCount !== 1 && "s"} duplicado{internalDuplicateCount !== 1 && "s"} en el archivo. Podés combinarlos sumando stock.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-yellow-600 border-yellow-300 hover:bg-yellow-100"
+                  onClick={handleMergeDuplicates}
+                >
+                  Combinar productos duplicados
+                </Button>
+              </div>
+            )}
             {duplicateCount > 0 && (
               <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-3 flex items-center justify-between">
                 <p className="text-sm text-red-700">

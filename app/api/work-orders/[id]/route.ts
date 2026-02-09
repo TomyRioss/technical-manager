@@ -44,7 +44,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { deviceModel, reportedFault, faultTags, agreedPrice, technicianId, internalNotes, warrantyDays } = body;
+    const { deviceModel, reportedFault, faultTags, agreedPrice, technicianId, internalNotes, warrantyDays, partsCost } = body;
 
     const order = await prisma.workOrder.update({
       where: { id },
@@ -56,6 +56,7 @@ export async function PUT(
         ...(technicianId !== undefined && { technicianId }),
         ...(internalNotes !== undefined && { internalNotes }),
         ...(warrantyDays !== undefined && { warrantyDays }),
+        ...(partsCost !== undefined && { partsCost }),
       },
       include: {
         client: { select: { id: true, name: true, phone: true } },

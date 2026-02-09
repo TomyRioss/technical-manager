@@ -18,6 +18,7 @@ export interface WorkOrder {
   reportedFault: string;
   faultTags: string[];
   agreedPrice: number | null;
+  partsCost: number | null;
   status: OrderStatus;
   warrantyDays: number | null;
   warrantyExpires: string | null;

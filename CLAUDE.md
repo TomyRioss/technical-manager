@@ -29,6 +29,17 @@
 ## Investigacion
 - Antes de realizar integraciones o investigaciones: leer documentacion oficial y buscar en StackOverflow, Reddit y publicaciones similares
 
+## UX obligatoria
+- SIEMPRE manejar errores en uploads y operaciones async del lado del cliente. Mostrar mensaje de error visible (rojo) al usuario. NUNCA fallar silenciosamente
+- SIEMPRE validar tipos de archivo en JS antes de enviar al server (no confiar solo en el atributo `accept` del input)
+- Cada acción del usuario debe tener feedback claro de éxito o error
+
+## API Routes
+- SIEMPRE loguear errores con console.error en rutas API. NUNCA silenciar excepciones con catch vacío
+- Usar `Uint8Array` en lugar de `Buffer.from()` para uploads en Next.js API routes
+- SIEMPRE manejar errores de Prisma en catch blocks: detectar códigos como P2002 (unique constraint), P2025 (record not found) y devolver mensajes de error claros en español al usuario. NUNCA devolver "Error del servidor" genérico cuando el error tiene una causa conocida
+- Todo catch en API routes DEBE devolver mensajes descriptivos y en español (ej: "Ya existe una cuenta con ese email", "Usuario no encontrado")
+
 ## Reglas
 - No ejecutar comandos destructivos de git (reset --hard, push --force, etc.)
 - No hacer mas de lo pedido. Seguir requerimientos al pie de la letra

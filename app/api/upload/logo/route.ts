@@ -17,16 +17,17 @@ export async function POST(req: NextRequest) {
     const ext = file.name.split(".").pop();
     const fileName = `logos/${storeId}.${ext}`;
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const arrayBuffer = await file.arrayBuffer();
 
     const { error } = await supabase.storage
       .from("store-assets")
-      .upload(fileName, buffer, {
+      .upload(fileName, new Uint8Array(arrayBuffer), {
         contentType: file.type,
         upsert: true,
       });
 
     if (error) {
+      console.error("[upload/logo] Supabase error:", error.message);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -35,7 +36,8 @@ export async function POST(req: NextRequest) {
       .getPublicUrl(fileName);
 
     return NextResponse.json({ url: publicUrlData.publicUrl });
-  } catch {
+  } catch (err) {
+    console.error("[upload/logo] Server error:", err);
     return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
   }
 }

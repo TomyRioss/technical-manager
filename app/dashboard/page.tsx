@@ -17,6 +17,7 @@ import {
   LuCopy,
   LuQrCode,
   LuExternalLink,
+  LuLoaderCircle,
 } from "react-icons/lu";
 import { formatPrice } from "@/lib/utils";
 
@@ -26,7 +27,7 @@ const MONTH_NAMES = [
 ];
 
 export default function DashboardPage() {
-  const { products, receipts, workOrders, storeSlug, userRole } = useDashboard();
+  const { products, receipts, workOrders, storeSlug, userRole, loading } = useDashboard();
   const isOwner = userRole === "OWNER";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -300,64 +301,78 @@ export default function DashboardPage() {
             href="/dashboard/sales"
             className="block rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50"
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-neutral-500">
-                  Ventas del mes — {MONTH_NAMES[currentMonth]} {currentYear}
-                </p>
-                <p className="mt-1 text-2xl font-semibold text-neutral-900">
-                  ${formatPrice(currentMonthTotal)}
-                </p>
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-3">
+                <LuLoaderCircle className="h-5 w-5 animate-spin text-neutral-400" />
+                <span className="text-sm text-neutral-500">Cargando datos...</span>
               </div>
-              {percentChange !== 0 && (
-                <div
-                  className={`flex items-center gap-1 text-sm font-medium ${
-                    percentChange > 0 ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  {percentChange > 0 ? (
-                    <LuTrendingUp className="h-4 w-4" />
-                  ) : (
-                    <LuTrendingDown className="h-4 w-4" />
-                  )}
-                  <span>
-                    {percentChange > 0 ? "+" : ""}
-                    {percentChange.toFixed(1)}% vs {MONTH_NAMES[prevMonth]}
-                  </span>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-neutral-500">
+                    Ventas del mes — {MONTH_NAMES[currentMonth]} {currentYear}
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold text-neutral-900">
+                    ${formatPrice(currentMonthTotal)}
+                  </p>
                 </div>
-              )}
-            </div>
+                {percentChange !== 0 && (
+                  <div
+                    className={`flex items-center gap-1 text-sm font-medium ${
+                      percentChange > 0 ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {percentChange > 0 ? (
+                      <LuTrendingUp className="h-4 w-4" />
+                    ) : (
+                      <LuTrendingDown className="h-4 w-4" />
+                    )}
+                    <span>
+                      {percentChange > 0 ? "+" : ""}
+                      {percentChange.toFixed(1)}% vs {MONTH_NAMES[prevMonth]}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </Link>
 
           {/* Card Utilidades Netas */}
           <div className="rounded-lg border border-neutral-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-neutral-500">
-                  Utilidades Netas — {MONTH_NAMES[currentMonth]} {currentYear}
-                </p>
-                <p className="mt-1 text-2xl font-semibold text-green-600">
-                  ${formatPrice(currentMonthNetProfit)}
-                </p>
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-3">
+                <LuLoaderCircle className="h-5 w-5 animate-spin text-neutral-400" />
+                <span className="text-sm text-neutral-500">Cargando datos...</span>
               </div>
-              {profitPercentChange !== 0 && (
-                <div
-                  className={`flex items-center gap-1 text-sm font-medium ${
-                    profitPercentChange > 0 ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  {profitPercentChange > 0 ? (
-                    <LuTrendingUp className="h-4 w-4" />
-                  ) : (
-                    <LuTrendingDown className="h-4 w-4" />
-                  )}
-                  <span>
-                    {profitPercentChange > 0 ? "+" : ""}
-                    {profitPercentChange.toFixed(1)}% vs {MONTH_NAMES[prevMonth]}
-                  </span>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-neutral-500">
+                    Utilidades Netas — {MONTH_NAMES[currentMonth]} {currentYear}
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold text-green-600">
+                    ${formatPrice(currentMonthNetProfit)}
+                  </p>
                 </div>
-              )}
-            </div>
+                {profitPercentChange !== 0 && (
+                  <div
+                    className={`flex items-center gap-1 text-sm font-medium ${
+                      profitPercentChange > 0 ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {profitPercentChange > 0 ? (
+                      <LuTrendingUp className="h-4 w-4" />
+                    ) : (
+                      <LuTrendingDown className="h-4 w-4" />
+                    )}
+                    <span>
+                      {profitPercentChange > 0 ? "+" : ""}
+                      {profitPercentChange.toFixed(1)}% vs {MONTH_NAMES[prevMonth]}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -373,7 +388,12 @@ export default function DashboardPage() {
                 Productos con bajo stock
               </p>
             </div>
-            {lowStock.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 px-4 py-6">
+                <LuLoaderCircle className="h-5 w-5 animate-spin text-neutral-400" />
+                <span className="text-sm text-neutral-500">Cargando datos...</span>
+              </div>
+            ) : lowStock.length === 0 ? (
               <p className="px-4 py-6 text-center text-sm text-neutral-500">
                 No hay productos con stock bajo.
               </p>
@@ -403,7 +423,12 @@ export default function DashboardPage() {
                 Recibos recientes
               </p>
             </div>
-            {recentReceipts.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 px-4 py-6">
+                <LuLoaderCircle className="h-5 w-5 animate-spin text-neutral-400" />
+                <span className="text-sm text-neutral-500">Cargando datos...</span>
+              </div>
+            ) : recentReceipts.length === 0 ? (
               <p className="px-4 py-6 text-center text-sm text-neutral-500">
                 No hay recibos aún.
               </p>

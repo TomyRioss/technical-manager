@@ -136,6 +136,45 @@ export function parseExcel(file: File): Promise<ParseResult> {
   });
 }
 
+export function mergeInternalDuplicates(items: ParsedItem[]): ParsedItem[] {
+  const groups = new Map<string, ParsedItem[]>();
+
+  for (const item of items) {
+    const key = item.sku || item.name;
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key)!.push(item);
+  }
+
+  const merged: ParsedItem[] = [];
+  for (const group of groups.values()) {
+    if (group.length === 1) {
+      merged.push(group[0]);
+      continue;
+    }
+
+    const totalStock = group.reduce((sum, item) => sum + item.stock, 0);
+    const name = group.find((i) => i.name)?.name ?? "";
+    const sku = group[0].sku;
+    const costPrice = group.find((i) => i.costPrice !== null)?.costPrice ?? null;
+    const salePrice = group.find((i) => i.salePrice !== null)?.salePrice ?? null;
+    const category = group.find((i) => i.category !== null)?.category ?? null;
+
+    merged.push({
+      sku,
+      name,
+      stock: totalStock,
+      costPrice,
+      salePrice,
+      isActive: salePrice !== null && salePrice > 0,
+      category,
+    });
+  }
+
+  return merged;
+}
+
 export function parseFile(file: File): Promise<ParseResult> {
   const ext = file.name.split(".").pop()?.toLowerCase();
   if (ext === "csv") {

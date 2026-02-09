@@ -25,6 +25,6 @@ export async function GET(
     return NextResponse.json(store);
   } catch (error) {
     console.error("Error fetching store:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "Error al obtener tienda. Intentá de nuevo." }, { status: 500 });
   }
 }

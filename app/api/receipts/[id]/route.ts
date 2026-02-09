@@ -59,6 +59,32 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  await prisma.$transaction(async (tx) => {
+    const receipt = await tx.receipt.findUniqueOrThrow({
+      where: { id },
+      include: { items: true },
+    });
+
+    // Restore stock for each item
+    for (const ri of receipt.items) {
+      await tx.item.update({
+        where: { id: ri.itemId },
+        data: { stock: { increment: ri.quantity } },
+      });
+    }
+
+    await tx.receipt.delete({ where: { id } });
+  });
+
+  return NextResponse.json({ ok: true });
+}
+
+export async function PATCH(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
   await prisma.receipt.update({ where: { id }, data: { isActive: false } });
   return NextResponse.json({ ok: true });
 }

@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -50,9 +51,23 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4">
-      <Card className="w-full max-w-sm">
+    <div className="flex min-h-screen bg-neutral-50">
+      {/* Logo panel - izquierda */}
+      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-neutral-900">
+        <Image src="/tipologo.png" alt="Koldesk" width={360} height={96} className="invert" />
+      </div>
+
+      {/* Form panel - derecha */}
+      <div className="flex w-full lg:w-1/2 items-center justify-center px-4 py-8">
+      <Card className="w-full max-w-sm border-0 shadow-none lg:border lg:shadow-sm">
         <CardHeader className="space-y-1 text-center">
+          <Image
+            src="/tipologo.png"
+            alt="KOLDESK"
+            width={160}
+            height={40}
+            className="mx-auto lg:hidden"
+          />
           <CardTitle className="text-2xl font-bold tracking-tight">
             Iniciar sesión
           </CardTitle>
@@ -110,6 +125,7 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
