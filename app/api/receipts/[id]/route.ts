@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import type { PaymentMethod, ReceiptStatus } from "@/lib/generated/prisma";
+import { checkReadOnly } from "@/lib/plan-guard";
 
 const paymentMethodReverseMap: Record<PaymentMethod, string> = {
   CASH: "Efectivo",
@@ -60,6 +61,12 @@ export async function DELETE(
 ) {
   const { id } = await params;
 
+  const existing = await prisma.receipt.findUnique({ where: { id }, select: { storeId: true } });
+  if (existing) {
+    const guard = await checkReadOnly(existing.storeId);
+    if (guard) return guard;
+  }
+
   await prisma.$transaction(async (tx) => {
     const receipt = await tx.receipt.findUniqueOrThrow({
       where: { id },
@@ -85,6 +92,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  const existingReceipt = await prisma.receipt.findUnique({ where: { id }, select: { storeId: true } });
+  if (existingReceipt) {
+    const guard = await checkReadOnly(existingReceipt.storeId);
+    if (guard) return guard;
+  }
+
   await prisma.receipt.update({ where: { id }, data: { isActive: false } });
   return NextResponse.json({ ok: true });
 }

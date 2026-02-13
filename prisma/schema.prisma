@@ -59,6 +59,7 @@ enum WarrantyStatus {
 
 enum StorePlan {
   FREE
+  DEMO
   BASIC
   PRO
   ENTERPRISE
@@ -74,7 +75,7 @@ model Store {
   address       String?
   phone         String?
   isActive      Boolean    @default(true) @map("is_active")
-  plan          StorePlan  @default(FREE)
+  plan          StorePlan  @default(DEMO)
   planExpiresAt DateTime?  @map("plan_expires_at")
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @updatedAt @map("updated_at")

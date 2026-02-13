@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage, buildStatusChangeMessage } from "@/lib/whatsapp";
+import { checkReadOnly } from "@/lib/plan-guard";
 
 export async function PUT(
   req: NextRequest,
@@ -16,6 +17,12 @@ export async function PUT(
         { error: "status y changedById son requeridos" },
         { status: 400 }
       );
+    }
+
+    const existingOrder = await prisma.workOrder.findUnique({ where: { id }, select: { storeId: true } });
+    if (existingOrder) {
+      const guard = await checkReadOnly(existingOrder.storeId);
+      if (guard) return guard;
     }
 
     const order = await prisma.workOrder.findUnique({

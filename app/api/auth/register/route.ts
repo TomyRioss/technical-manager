@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { DEMO_TRIAL_DAYS } from "@/lib/store-plans";
 
 function generateInviteCode(): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -50,9 +51,12 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Crear Store
+      // Crear Store con plan DEMO (trial de 14 días)
+      const planExpiresAt = new Date();
+      planExpiresAt.setDate(planExpiresAt.getDate() + DEMO_TRIAL_DAYS);
+
       const store = await prisma.store.create({
-        data: { name: storeName },
+        data: { name: storeName, plan: "DEMO" as never, planExpiresAt },
       });
 
       // Crear StoreSettings con slug y código de invitación

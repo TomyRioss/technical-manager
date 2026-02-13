@@ -1,11 +1,14 @@
 export const STORE_PLANS = {
   FREE: "FREE",
+  DEMO: "DEMO",
   BASIC: "BASIC",
   PRO: "PRO",
   ENTERPRISE: "ENTERPRISE",
 } as const;
 
 export type StorePlan = keyof typeof STORE_PLANS;
+
+export const DEMO_TRIAL_DAYS = 14;
 
 export const STORE_FEATURES = {
   INVENTORY: "INVENTORY",
@@ -33,6 +36,15 @@ export const PLAN_FEATURES: Record<StorePlan, StoreFeature[]> = {
     "WORK_ORDERS",
     "CLIENTS",
     "RECEIPTS",
+  ],
+  DEMO: [
+    "INVENTORY",
+    "WORK_ORDERS",
+    "CLIENTS",
+    "RECEIPTS",
+    "ECOMMERCE",
+    "CUSTOM_BRANDING",
+    "EXPORT_DATA",
   ],
   BASIC: [
     "INVENTORY",
@@ -80,11 +92,15 @@ export function planHasFeature(plan: StorePlan, feature: StoreFeature): boolean 
 }
 
 export function getMinimumPlanForFeature(feature: StoreFeature): StorePlan {
-  const plans: StorePlan[] = ["FREE", "BASIC", "PRO", "ENTERPRISE"];
+  const plans: StorePlan[] = ["FREE", "DEMO", "BASIC", "PRO", "ENTERPRISE"];
   for (const plan of plans) {
     if (PLAN_FEATURES[plan].includes(feature)) {
       return plan;
     }
   }
   return "ENTERPRISE";
+}
+
+export function isReadOnlyPlan(plan: string): boolean {
+  return plan === "FREE";
 }

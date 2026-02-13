@@ -41,6 +41,7 @@ export default function EditProductPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
@@ -81,16 +82,23 @@ export default function EditProductPage() {
   async function handleSave() {
     if (!form.name.trim()) return;
     setSaving(true);
+    setUploadError(null);
 
     await updateProduct(id, form);
+    let hadUploadError = false;
 
     if (imageFile) {
       const url = await uploadImage(imageFile);
-      if (url) setProductImage(id, url);
+      if (url) {
+        setProductImage(id, url);
+      } else {
+        hadUploadError = true;
+        setUploadError("No se pudo subir la imagen. Los demás cambios se guardaron correctamente.");
+      }
     }
 
     setSaving(false);
-    router.push("/dashboard/inventario");
+    if (!hadUploadError) router.push("/dashboard/inventario");
   }
 
   if (notFound) {
@@ -261,6 +269,10 @@ export default function EditProductPage() {
             Producto activo
           </Label>
         </div>
+
+        {uploadError && (
+          <p className="text-sm text-red-600 font-medium">{uploadError}</p>
+        )}
 
         {/* Actions */}
         <div className="flex items-center gap-3 pt-2">

@@ -14,16 +14,17 @@ export async function POST(req: NextRequest) {
   const ext = file.name.split(".").pop();
   const fileName = itemId ? `${itemId}.${ext}` : `${crypto.randomUUID()}.${ext}`;
 
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const bytes = new Uint8Array(await file.arrayBuffer());
 
   const { error } = await supabase.storage
     .from("products")
-    .upload(fileName, buffer, {
+    .upload(fileName, bytes, {
       contentType: file.type,
       upsert: true,
     });
 
   if (error) {
+    console.error("Upload to Supabase failed:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

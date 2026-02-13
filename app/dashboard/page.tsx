@@ -129,8 +129,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-semibold text-neutral-900">Inicio</h1>
-
       {/* Cards de navegación */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {isOwner && (

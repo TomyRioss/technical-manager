@@ -19,7 +19,6 @@ export default function ConfiguracionLayout({ children }: { children: React.Reac
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Configuraci&oacute;n</h1>
       <div className="flex flex-col sm:flex-row gap-6">
         <nav className="flex sm:flex-col gap-1 sm:w-48 shrink-0 overflow-x-auto">
           {configTabs.map((tab) => {

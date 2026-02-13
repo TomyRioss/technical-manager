@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkReadOnly } from "@/lib/plan-guard";
 
 export async function GET(
   _req: NextRequest,
@@ -43,6 +44,13 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+
+    const existing = await prisma.workOrder.findUnique({ where: { id }, select: { storeId: true } });
+    if (existing) {
+      const guard = await checkReadOnly(existing.storeId);
+      if (guard) return guard;
+    }
+
     const body = await req.json();
     const { deviceModel, reportedFault, faultTags, agreedPrice, technicianId, internalNotes, warrantyDays, partsCost } = body;
 
@@ -77,6 +85,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+
+    const existing = await prisma.workOrder.findUnique({ where: { id }, select: { storeId: true } });
+    if (existing) {
+      const guard = await checkReadOnly(existing.storeId);
+      if (guard) return guard;
+    }
 
     await prisma.workOrder.update({
       where: { id },

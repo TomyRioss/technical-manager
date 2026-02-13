@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import type { PaymentMethod, ReceiptStatus } from "@/lib/generated/prisma";
+import { checkReadOnly } from "@/lib/plan-guard";
 
 const paymentMethodMap: Record<string, PaymentMethod> = {
   "Efectivo": "CASH",
@@ -67,6 +68,9 @@ export async function POST(req: NextRequest) {
   if (!storeId || !userId || !paymentMethod || !items?.length) {
     return NextResponse.json({ error: "Campos requeridos faltantes" }, { status: 400 });
   }
+
+  const guard = await checkReadOnly(storeId);
+  if (guard) return guard;
 
   const dbPaymentMethod = paymentMethodMap[paymentMethod];
   if (!dbPaymentMethod) {

@@ -45,6 +45,7 @@ export default function CreateProductPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
@@ -78,16 +79,23 @@ export default function CreateProductPage() {
   async function handleSave() {
     if (!form.name.trim()) return;
     setSaving(true);
+    setUploadError(null);
 
     const itemId = await addProduct(form);
+    let hadUploadError = false;
 
     if (imageFile && itemId) {
       const url = await uploadImage(imageFile, itemId);
-      if (url) setProductImage(itemId, url);
+      if (url) {
+        setProductImage(itemId, url);
+      } else {
+        hadUploadError = true;
+        setUploadError("No se pudo subir la imagen. El producto se guardó sin imagen.");
+      }
     }
 
     setSaving(false);
-    router.push("/dashboard/inventario");
+    if (!hadUploadError) router.push("/dashboard/inventario");
   }
 
   function canContinue() {
@@ -257,6 +265,10 @@ export default function CreateProductPage() {
             Producto activo
           </Label>
         </div>
+
+        {uploadError && (
+          <p className="text-sm text-red-600 font-medium">{uploadError}</p>
+        )}
 
         <div className="flex gap-2 justify-end">
           <Button variant="outline" onClick={() => router.push("/dashboard/inventario")} disabled={saving}>
@@ -552,6 +564,10 @@ export default function CreateProductPage() {
           </Label>
         </div>
       </div>
+
+      {uploadError && (
+        <p className="text-sm text-red-600 font-medium">{uploadError}</p>
+      )}
 
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={() => setStep(4)} disabled={saving}>

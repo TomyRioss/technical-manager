@@ -25,6 +25,7 @@ import {
 import { LuPlus, LuPencil, LuTrash2, LuSearch, LuUpload, LuX, LuTag, LuChevronLeft, LuChevronRight, LuArrowUp, LuArrowDown, LuArrowUpDown, LuFilter } from "react-icons/lu";
 import { Loader2 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { useStorePlan } from "@/hooks/use-store-plan";
 import { BulkImportDialog } from "@/components/inventario/bulk-import-dialog";
 import { CategorySelect } from "@/components/ui/category-select";
 import {
@@ -48,6 +49,7 @@ function hasMissingData(product: Product): boolean {
 
 export default function InventarioPage() {
   const { products, deleteProduct, updateProductCategory, storeId, loading } = useDashboard();
+  const { isReadOnly } = useStorePlan();
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
@@ -179,28 +181,11 @@ export default function InventarioPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-neutral-900">Inventario</h1>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => setBulkDialogOpen(true)}>
-            <LuUpload className="mr-1.5 h-4 w-4" />
-            Importar Inventario
-          </Button>
-          <Link href="/dashboard/inventario/create">
-            <Button size="sm">
-              <LuPlus className="mr-1.5 h-4 w-4" />
-              Agregar producto
-            </Button>
-          </Link>
-        </div>
-      </div>
-
       <BulkImportDialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen} />
 
-      {/* Search + Filtro */}
-      <div className="flex items-center gap-3">
-        <div className="relative max-w-sm flex-1">
+      {/* Search + Filtro + Botones */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="relative w-full sm:w-auto sm:max-w-sm sm:flex-1">
           <LuSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
           <Input
             placeholder="Buscar por nombre, SKU..."
@@ -251,6 +236,20 @@ export default function InventarioPage() {
             </PopoverContent>
           </Popover>
         )}
+        <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+          <Button size="sm" variant="outline" onClick={() => setBulkDialogOpen(true)} disabled={isReadOnly}>
+            <LuUpload className="mr-1.5 h-4 w-4" />
+            <span className="hidden sm:inline">Importar Inventario</span>
+            <span className="sm:hidden">Importar</span>
+          </Button>
+          <Link href="/dashboard/inventario/create" className={isReadOnly ? "pointer-events-none" : ""}>
+            <Button size="sm" disabled={isReadOnly}>
+              <LuPlus className="mr-1.5 h-4 w-4" />
+              <span className="hidden sm:inline">Agregar producto</span>
+              <span className="sm:hidden">Agregar</span>
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Category tags */}
@@ -289,7 +288,7 @@ export default function InventarioPage() {
             : "No se encontraron resultados."}
         </div>
       ) : (
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -299,14 +298,15 @@ export default function InventarioPage() {
                     onCheckedChange={toggleSelectAll}
                   />
                 </TableHead>
-                <TableHead className="w-12">Img</TableHead>
+                <TableHead className="w-12 hidden md:table-cell">Img</TableHead>
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort("name")}>
                   <span className="inline-flex items-center">Nombre<SortIcon column="name" /></span>
                 </TableHead>
-                <TableHead>Categoría</TableHead>
-                <TableHead>SKU</TableHead>
+                <TableHead className="hidden md:table-cell">Categoría</TableHead>
+                <TableHead className="hidden md:table-cell">SKU</TableHead>
+                <TableHead className="text-right hidden md:table-cell">Precio C.</TableHead>
                 <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("price")}>
-                  <span className="inline-flex items-center justify-end w-full">Precio<SortIcon column="price" /></span>
+                  <span className="inline-flex items-center justify-end w-full">Precio V.<SortIcon column="price" /></span>
                 </TableHead>
                 <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("stock")}>
                   <span className="inline-flex items-center justify-end w-full">Stock<SortIcon column="stock" /></span>
@@ -326,7 +326,7 @@ export default function InventarioPage() {
                       onCheckedChange={() => toggleSelect(product.id)}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     {product.imageUrl ? (
                       <img
                         src={product.imageUrl}
@@ -340,11 +340,14 @@ export default function InventarioPage() {
                   <TableCell className="font-medium">
                     {product.name}
                   </TableCell>
-                  <TableCell className="text-neutral-500">
+                  <TableCell className="text-neutral-500 hidden md:table-cell">
                     {product.categoryName || "—"}
                   </TableCell>
-                  <TableCell className="text-neutral-500">
+                  <TableCell className="text-neutral-500 hidden md:table-cell">
                     {product.sku || "—"}
+                  </TableCell>
+                  <TableCell className="text-right hidden md:table-cell">
+                    {product.costPrice != null ? `$${formatPrice(product.costPrice)}` : "—"}
                   </TableCell>
                   <TableCell className="text-right">
                     {product.price > 0 ? `$${formatPrice(product.price)}` : "—"}
@@ -368,11 +371,12 @@ export default function InventarioPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Link href={`/dashboard/inventario/${product.id}/edit`}>
+                      <Link href={`/dashboard/inventario/${product.id}/edit`} className={isReadOnly ? "pointer-events-none" : ""}>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
+                          disabled={isReadOnly}
                         >
                           <LuPencil className="h-4 w-4" />
                         </Button>
@@ -400,6 +404,7 @@ export default function InventarioPage() {
                           size="icon"
                           className="h-8 w-8 text-neutral-500 hover:text-red-600"
                           onClick={() => setDeletingId(product.id)}
+                          disabled={isReadOnly}
                         >
                           <LuTrash2 className="h-4 w-4" />
                         </Button>
@@ -415,8 +420,8 @@ export default function InventarioPage() {
 
       {/* Paginación */}
       {filtered.length > 0 && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-center sm:justify-between gap-2">
+          <div className="hidden sm:flex items-center gap-2">
             <span className="text-sm text-neutral-500">Mostrar</span>
             <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
               <SelectTrigger className="w-20 h-8">
@@ -440,7 +445,7 @@ export default function InventarioPage() {
               <LuChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <span className="text-sm text-neutral-500">
+          <span className="hidden sm:block text-sm text-neutral-500">
             Mostrando {startIndex + 1}–{Math.min(startIndex + itemsPerPage, filtered.length)} de {filtered.length} productos
           </span>
         </div>
@@ -448,7 +453,7 @@ export default function InventarioPage() {
 
       {/* Barra flotante de acciones */}
       {someSelected && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-neutral-900 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-4">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-neutral-900 text-white px-4 py-3 rounded-lg shadow-lg flex flex-wrap items-center justify-center gap-2 sm:gap-4 max-w-[calc(100vw-2rem)]">
           <span className="text-sm">{selectedIds.size} seleccionado{selectedIds.size > 1 && "s"}</span>
           <div className="flex items-center gap-2">
             <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>

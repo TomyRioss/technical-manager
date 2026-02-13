@@ -11,11 +11,13 @@ import { cn } from "@/lib/utils";
 import type { WorkOrder } from "@/types/work-order";
 import { LuPlus, LuSearch, LuLayoutGrid, LuList } from "react-icons/lu";
 import Link from "next/link";
+import { useStorePlan } from "@/hooks/use-store-plan";
 
 type ViewTab = "todas" | "mias" | "activas";
 
 export default function OrdenesPage() {
   const { storeId, userId } = useDashboard();
+  const { isReadOnly } = useStorePlan();
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -78,18 +80,8 @@ export default function OrdenesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Órdenes de Trabajo</h1>
-        <Link href="/dashboard/ordenes/create">
-          <Button>
-            <LuPlus className="h-4 w-4 mr-1" />
-            Nueva Orden
-          </Button>
-        </Link>
-      </div>
-
       {/* Tabs */}
-      <div className="flex items-center gap-4 border-b border-border">
+      <div className="flex items-center gap-2 sm:gap-4 border-b border-border">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -122,7 +114,7 @@ export default function OrdenesPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1 max-w-full sm:max-w-sm">
           <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
           <Input
             placeholder="Buscar..."
@@ -138,6 +130,14 @@ export default function OrdenesPage() {
           onTechnicianChange={setTechnicianFilter}
           technicians={technicians}
         />
+        <div className="ml-auto">
+          <Link href="/dashboard/ordenes/create" className={isReadOnly ? "pointer-events-none" : ""}>
+            <Button disabled={isReadOnly}>
+              <LuPlus className="h-4 w-4 mr-1" />
+              Nueva Orden
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {loading ? (

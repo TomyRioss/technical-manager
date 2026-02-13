@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import type { PaymentMethod } from "@/lib/generated/prisma";
+import { checkReadOnly } from "@/lib/plan-guard";
 
 const ALL_METHODS: PaymentMethod[] = ["CASH", "DEBIT_TRANSFER", "CREDIT_TRANSFER", "OTHER"];
 
@@ -34,6 +35,9 @@ export async function PUT(req: NextRequest) {
   if (!storeId || !commissions?.length) {
     return NextResponse.json({ error: "Campos requeridos faltantes" }, { status: 400 });
   }
+
+  const guard = await checkReadOnly(storeId);
+  if (guard) return guard;
 
   const results = await prisma.$transaction(
     commissions.map((c) =>

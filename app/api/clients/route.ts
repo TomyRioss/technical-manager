@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkReadOnly } from "@/lib/plan-guard";
 
 export async function GET(req: NextRequest) {
   try {
@@ -30,6 +31,9 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    const guard = await checkReadOnly(storeId);
+    if (guard) return guard;
 
     const client = await prisma.client.create({
       data: { name, phone, email, notes, storeId },

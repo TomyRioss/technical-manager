@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_DEVICE_CATALOG } from "@/lib/device-catalog";
+import { checkReadOnly } from "@/lib/plan-guard";
 
 async function seedGlobalCatalog() {
   const count = await prisma.deviceBrand.count({ where: { isGlobal: true } });
@@ -68,6 +69,9 @@ export async function POST(req: NextRequest) {
     if (!storeId || !name?.trim()) {
       return NextResponse.json({ error: "storeId y name requeridos" }, { status: 400 });
     }
+
+    const guard = await checkReadOnly(storeId);
+    if (guard) return guard;
 
     const brand = await prisma.deviceBrand.create({
       data: {

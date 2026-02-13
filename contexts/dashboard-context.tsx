@@ -12,7 +12,7 @@ import type { Product } from "@/types/product";
 import type { Receipt } from "@/types/receipt";
 import type { WorkOrder } from "@/types/work-order";
 import type { UserRole } from "@/lib/auth-check";
-import type { StorePlan } from "@/lib/store-plans";
+import { type StorePlan, isReadOnlyPlan } from "@/lib/store-plans";
 
 interface CommissionConfig {
   paymentMethod: string;
@@ -24,6 +24,7 @@ interface DashboardContextType {
   storeName: string;
   storeSlug: string;
   storePlan: StorePlan;
+  planExpiresAt: string | null;
   userId: string;
   userRole: UserRole;
 
@@ -59,11 +60,12 @@ interface DashboardProviderProps {
   storeName: string;
   storeSlug: string;
   storePlan: StorePlan;
+  planExpiresAt: string | null;
   userId: string;
   userRole: UserRole;
 }
 
-export function DashboardProvider({ children, storeId, storeName, storeSlug, storePlan, userId, userRole }: DashboardProviderProps) {
+export function DashboardProvider({ children, storeId, storeName, storeSlug, storePlan, planExpiresAt, userId, userRole }: DashboardProviderProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [archivedReceipts, setArchivedReceipts] = useState<Receipt[]>([]);
@@ -146,6 +148,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
   // --- Products ---
 
   async function addProduct(data: Omit<Product, "id">): Promise<string | null> {
+    if (isReadOnlyPlan(storePlan)) return null;
     const res = await fetch("/api/items", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -182,6 +185,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
   }
 
   async function updateProduct(id: string, data: Omit<Product, "id">) {
+    if (isReadOnlyPlan(storePlan)) return;
     const res = await fetch(`/api/items/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -219,6 +223,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
   }
 
   async function deleteProduct(id: string) {
+    if (isReadOnlyPlan(storePlan)) return;
     const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
     if (!res.ok) return;
     setProducts((prev) => prev.filter((p) => p.id !== id));
@@ -235,6 +240,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
   }
 
   async function updateProductCategory(id: string, categoryId: string | null) {
+    if (isReadOnlyPlan(storePlan)) return;
     const res = await fetch(`/api/items/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -260,6 +266,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
   };
 
   async function updateCommissions(updated: CommissionConfig[]) {
+    if (isReadOnlyPlan(storePlan)) return;
     const res = await fetch("/api/commissions", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -279,6 +286,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
   // --- Receipts ---
 
   async function addReceipt(data: Omit<Receipt, "id" | "receiptNumber" | "createdAt">) {
+    if (isReadOnlyPlan(storePlan)) return;
     const res = await fetch("/api/receipts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -314,6 +322,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
   }
 
   async function deleteReceipt(id: string) {
+    if (isReadOnlyPlan(storePlan)) return;
     const receipt = receipts.find((r) => r.id === id) || archivedReceipts.find((r) => r.id === id);
     const res = await fetch(`/api/receipts/${id}`, { method: "DELETE" });
     if (!res.ok) return;
@@ -337,6 +346,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
   }
 
   async function archiveReceipt(id: string) {
+    if (isReadOnlyPlan(storePlan)) return;
     const res = await fetch(`/api/receipts/${id}`, { method: "PATCH" });
     if (!res.ok) return;
     const receipt = receipts.find((r) => r.id === id);
@@ -357,6 +367,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
         storeName,
         storeSlug,
         storePlan,
+        planExpiresAt,
         userId,
         userRole,
         products,
