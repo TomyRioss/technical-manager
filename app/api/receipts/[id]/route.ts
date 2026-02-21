@@ -22,37 +22,47 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const receipt = await prisma.receipt.findFirst({
-    where: { id, isActive: true },
-    include: { items: { include: { item: true } } },
-  });
+  try {
+    const receipt = await prisma.receipt.findFirst({
+      where: { id, isActive: true },
+      include: { items: { include: { item: true } } },
+    });
 
-  if (!receipt) {
-    return NextResponse.json({ error: "Recibo no encontrado" }, { status: 404 });
+    if (!receipt) {
+      return NextResponse.json({ error: "Recibo no encontrado" }, { status: 404 });
+    }
+
+    const mapped = {
+      id: receipt.id,
+      receiptNumber: receipt.receiptNumber,
+      status: statusReverseMap[receipt.status],
+      paymentMethod: paymentMethodReverseMap[receipt.paymentMethod],
+      subtotal: receipt.subtotal,
+      commissionRate: receipt.commissionRate,
+      commissionAmount: receipt.commissionAmount,
+      total: receipt.total,
+      notes: receipt.notes || "",
+      items: receipt.items.map((ri) => ({
+        id: ri.id,
+        productId: ri.itemId,
+        name: ri.item.name,
+        quantity: ri.quantity,
+        unitPrice: ri.unitPrice,
+        lineTotal: ri.lineTotal,
+      })),
+      createdAt: receipt.createdAt,
+    };
+
+    return NextResponse.json(mapped);
+  } catch (error: unknown) {
+    console.error("GET /api/receipts/[id] error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al obtener el recibo" }, { status: 500 });
   }
-
-  const mapped = {
-    id: receipt.id,
-    receiptNumber: receipt.receiptNumber,
-    status: statusReverseMap[receipt.status],
-    paymentMethod: paymentMethodReverseMap[receipt.paymentMethod],
-    subtotal: receipt.subtotal,
-    commissionRate: receipt.commissionRate,
-    commissionAmount: receipt.commissionAmount,
-    total: receipt.total,
-    notes: receipt.notes || "",
-    items: receipt.items.map((ri) => ({
-      id: ri.id,
-      productId: ri.itemId,
-      name: ri.item.name,
-      quantity: ri.quantity,
-      unitPrice: ri.unitPrice,
-      lineTotal: ri.lineTotal,
-    })),
-    createdAt: receipt.createdAt,
-  };
-
-  return NextResponse.json(mapped);
 }
 
 export async function DELETE(
@@ -61,30 +71,40 @@ export async function DELETE(
 ) {
   const { id } = await params;
 
-  const existing = await prisma.receipt.findUnique({ where: { id }, select: { storeId: true } });
-  if (existing) {
-    const guard = await checkReadOnly(existing.storeId);
-    if (guard) return guard;
-  }
-
-  await prisma.$transaction(async (tx) => {
-    const receipt = await tx.receipt.findUniqueOrThrow({
-      where: { id },
-      include: { items: true },
-    });
-
-    // Restore stock for each item
-    for (const ri of receipt.items) {
-      await tx.item.update({
-        where: { id: ri.itemId },
-        data: { stock: { increment: ri.quantity } },
-      });
+  try {
+    const existing = await prisma.receipt.findUnique({ where: { id }, select: { storeId: true } });
+    if (existing) {
+      const guard = await checkReadOnly(existing.storeId);
+      if (guard) return guard;
     }
 
-    await tx.receipt.delete({ where: { id } });
-  });
+    await prisma.$transaction(async (tx) => {
+      const receipt = await tx.receipt.findUniqueOrThrow({
+        where: { id },
+        include: { items: true },
+      });
 
-  return NextResponse.json({ ok: true });
+      // Restore stock for each item
+      for (const ri of receipt.items) {
+        await tx.item.update({
+          where: { id: ri.itemId },
+          data: { stock: { increment: ri.quantity } },
+        });
+      }
+
+      await tx.receipt.delete({ where: { id } });
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error: unknown) {
+    console.error("DELETE /api/receipts/[id] error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al eliminar el recibo" }, { status: 500 });
+  }
 }
 
 export async function PATCH(
@@ -93,12 +113,22 @@ export async function PATCH(
 ) {
   const { id } = await params;
 
-  const existingReceipt = await prisma.receipt.findUnique({ where: { id }, select: { storeId: true } });
-  if (existingReceipt) {
-    const guard = await checkReadOnly(existingReceipt.storeId);
-    if (guard) return guard;
-  }
+  try {
+    const existingReceipt = await prisma.receipt.findUnique({ where: { id }, select: { storeId: true } });
+    if (existingReceipt) {
+      const guard = await checkReadOnly(existingReceipt.storeId);
+      if (guard) return guard;
+    }
 
-  await prisma.receipt.update({ where: { id }, data: { isActive: false } });
-  return NextResponse.json({ ok: true });
+    await prisma.receipt.update({ where: { id }, data: { isActive: false } });
+    return NextResponse.json({ ok: true });
+  } catch (error: unknown) {
+    console.error("PATCH /api/receipts/[id] error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al archivar el recibo" }, { status: 500 });
+  }
 }

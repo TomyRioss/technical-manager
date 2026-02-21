@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 export async function GET(req: NextRequest) {
   try {
     const storeId = req.nextUrl.searchParams.get("storeId");
+    const branchId = req.nextUrl.searchParams.get("branchId");
     const type = req.nextUrl.searchParams.get("type") ?? "orders";
     const format = req.nextUrl.searchParams.get("format") ?? "xlsx";
 
@@ -17,8 +18,10 @@ export async function GET(req: NextRequest) {
 
     if (type === "orders") {
       sheetName = "Órdenes";
+      const orderWhere: Record<string, unknown> = { storeId, isActive: true };
+      if (branchId) orderWhere.branchId = branchId;
       const orders = await prisma.workOrder.findMany({
-        where: { storeId, isActive: true },
+        where: orderWhere,
         include: {
           client: { select: { name: true, phone: true } },
           technician: { select: { name: true } },
@@ -39,8 +42,10 @@ export async function GET(req: NextRequest) {
       }));
     } else if (type === "clients") {
       sheetName = "Clientes";
+      const clientWhere: Record<string, unknown> = { storeId, isActive: true };
+      if (branchId) clientWhere.branchId = branchId;
       const clients = await prisma.client.findMany({
-        where: { storeId, isActive: true },
+        where: clientWhere,
         orderBy: { name: "asc" },
       });
       data = clients.map((c) => ({
@@ -54,8 +59,10 @@ export async function GET(req: NextRequest) {
       }));
     } else if (type === "receipts") {
       sheetName = "Recibos";
+      const receiptWhere: Record<string, unknown> = { storeId, isActive: true };
+      if (branchId) receiptWhere.branchId = branchId;
       const receipts = await prisma.receipt.findMany({
-        where: { storeId, isActive: true },
+        where: receiptWhere,
         include: { user: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
       });
@@ -104,7 +111,13 @@ export async function GET(req: NextRequest) {
         "Content-Disposition": `attachment; filename="${filename}.xlsx"`,
       },
     });
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("GET /api/export error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al exportar datos" }, { status: 500 });
   }
 }

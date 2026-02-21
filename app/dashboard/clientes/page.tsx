@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ClientTable } from "@/components/clients/client-table";
@@ -11,23 +12,12 @@ import Link from "next/link";
 import { useStorePlan } from "@/hooks/use-store-plan";
 
 export default function ClientesPage() {
-  const { storeId } = useDashboard();
+  const { storeId, branchId } = useDashboard();
   const { isReadOnly } = useStorePlan();
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  const fetchClients = useCallback(async () => {
-    const res = await fetch(`/api/clients?storeId=${storeId}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    setClients(data);
-  }, [storeId]);
-
-  useEffect(() => {
-    setLoading(true);
-    fetchClients().finally(() => setLoading(false));
-  }, [fetchClients]);
+  const clientsKey = `/api/clients?storeId=${storeId}&branchId=${branchId}`;
+  const { data: clients = [], isLoading: loading, mutate } = useSWR<Client[]>(clientsKey);
 
   const filtered = clients.filter((c) => {
     if (!search) return true;
@@ -66,7 +56,7 @@ export default function ClientesPage() {
       ) : (
         <ClientTable
           clients={filtered}
-          onDelete={(id) => setClients((prev) => prev.filter((c) => c.id !== id))}
+          onDelete={(id) => mutate((prev) => (prev ?? []).filter((c) => c.id !== id), { revalidate: false })}
         />
       )}
     </div>

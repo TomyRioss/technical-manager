@@ -30,7 +30,7 @@ interface TechnicianOption {
 }
 
 export function OrderForm() {
-  const { storeId, userId } = useDashboard();
+  const { storeId, userId, branchId } = useDashboard();
   const router = useRouter();
 
   const [formMode, setFormMode] = useState<"steps" | "complete">("steps");
@@ -48,6 +48,8 @@ export function OrderForm() {
   const [technicians, setTechnicians] = useState<TechnicianOption[]>([]);
   const [devicePhotos, setDevicePhotos] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [photoWarning, setPhotoWarning] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchTechnicians() {
@@ -65,26 +67,35 @@ export function OrderForm() {
     if (!clientId || !deviceModel.trim() || !reportedFault.trim() || paidPrice <= 0) return;
 
     setSaving(true);
-    const res = await fetch("/api/work-orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        deviceModel: deviceModel.trim(),
-        reportedFault: reportedFault.trim(),
-        faultTags,
-        agreedPrice: paidPrice,
-        clientId,
-        technicianId: technicianId || null,
-        createdById: userId,
-        storeId,
-        internalNotes: internalNotes.trim() || null,
-        warrantyDays: warrantyDays ? parseInt(warrantyDays) : null,
-        partsCost: partsCost || 0,
-      }),
-    });
+    setError(null);
+    setPhotoWarning(null);
+    try {
+      const res = await fetch("/api/work-orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceModel: deviceModel.trim(),
+          reportedFault: reportedFault.trim(),
+          faultTags,
+          agreedPrice: paidPrice,
+          clientId,
+          technicianId: technicianId || null,
+          createdById: userId,
+          storeId,
+          branchId,
+          internalNotes: internalNotes.trim() || null,
+          warrantyDays: warrantyDays ? parseInt(warrantyDays) : null,
+          partsCost: partsCost || 0,
+        }),
+      });
 
-    if (res.ok) {
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Error al crear la orden");
+      }
+
       const order = await res.json();
+      let failedPhotos = 0;
 
       for (const photo of devicePhotos) {
         try {
@@ -105,13 +116,21 @@ export function OrderForm() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ url, caption: null }),
             });
+          } else {
+            failedPhotos++;
           }
         } catch {
-          // Continuar con las demás fotos si una falla
+          failedPhotos++;
         }
       }
 
+      if (failedPhotos > 0) {
+        setPhotoWarning(`La orden se creó pero ${failedPhotos} foto(s) no se pudieron subir.`);
+      }
+
       router.push(`/dashboard/ordenes/${order.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al crear la orden");
     }
     setSaving(false);
   }
@@ -169,6 +188,7 @@ export function OrderForm() {
         {/* Cliente */}
         <ClientSelector
           storeId={storeId}
+          branchId={branchId}
           selectedId={clientId}
           onSelect={(c) => {
             setClientId(c?.id ?? null);
@@ -263,6 +283,8 @@ export function OrderForm() {
         {/* Fotos */}
         <DevicePhotosInput photos={devicePhotos} onChange={setDevicePhotos} />
 
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        {photoWarning && <p className="text-sm text-red-600">{photoWarning}</p>}
         <div className="flex gap-2 justify-end">
           <Button type="button" variant="outline" onClick={() => router.push("/dashboard/ordenes")} disabled={saving}>
             Cancelar
@@ -537,6 +559,8 @@ export function OrderForm() {
         <DevicePhotosInput photos={devicePhotos} onChange={setDevicePhotos} />
       </div>
 
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      {photoWarning && <p className="text-sm text-red-600">{photoWarning}</p>}
       <div className="flex gap-2 justify-end">
         <Button type="button" variant="outline" onClick={() => setStep(4)} disabled={saving}>
           <ChevronLeft className="h-4 w-4" /> Volver

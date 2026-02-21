@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { LuPlus, LuPencil, LuTrash2, LuSearch, LuUpload, LuX, LuTag, LuChevronLeft, LuChevronRight, LuArrowUp, LuArrowDown, LuArrowUpDown, LuFilter } from "react-icons/lu";
 import { Loader2 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
@@ -48,7 +49,7 @@ function hasMissingData(product: Product): boolean {
 }
 
 export default function InventarioPage() {
-  const { products, deleteProduct, updateProductCategory, storeId, loading } = useDashboard();
+  const { products, deleteProduct, toggleProductActive, updateProductCategory, storeId, loading } = useDashboard();
   const { isReadOnly } = useStorePlan();
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -288,7 +289,7 @@ export default function InventarioPage() {
             : "No se encontraron resultados."}
         </div>
       ) : (
-        <div className="rounded-md border overflow-x-auto">
+        <div className="rounded-md border overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-neutral-100 [&::-webkit-scrollbar-thumb]:bg-neutral-300 [&::-webkit-scrollbar-thumb]:rounded-full">
           <Table>
             <TableHeader>
               <TableRow>
@@ -304,9 +305,9 @@ export default function InventarioPage() {
                 </TableHead>
                 <TableHead className="hidden md:table-cell">Categoría</TableHead>
                 <TableHead className="hidden md:table-cell">SKU</TableHead>
-                <TableHead className="text-right hidden md:table-cell">Precio C.</TableHead>
+                <TableHead className="text-right hidden md:table-cell">Precio Compra</TableHead>
                 <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("price")}>
-                  <span className="inline-flex items-center justify-end w-full">Precio V.<SortIcon column="price" /></span>
+                  <span className="inline-flex items-center justify-end w-full">Precio Venta<SortIcon column="price" /></span>
                 </TableHead>
                 <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("stock")}>
                   <span className="inline-flex items-center justify-end w-full">Stock<SortIcon column="stock" /></span>
@@ -356,18 +357,23 @@ export default function InventarioPage() {
                     {product.stock}
                   </TableCell>
                   <TableCell>
-                    {product.active ? (
-                      <Badge variant="default">Activo</Badge>
-                    ) : (
-                      <span className="text-orange-500 text-xs">
-                        {(() => {
-                          const missing = getMissingData(product);
-                          return missing.length === 1
-                            ? `${missing[0]} pendiente`
-                            : `${missing.length} datos pendientes`;
-                        })()}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={product.active}
+                        onCheckedChange={() => toggleProductActive(product.id)}
+                        disabled={isReadOnly}
+                      />
+                      {!product.active && hasMissingData(product) && (
+                        <span className="text-orange-500 text-xs">
+                          {(() => {
+                            const missing = getMissingData(product);
+                            return missing.length === 1
+                              ? `${missing[0]} pendiente`
+                              : `${missing.length} pendientes`;
+                          })()}
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">

@@ -77,6 +77,16 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // Crear Branch "Sucursal Principal" por defecto
+      const branch = await prisma.branch.create({
+        data: {
+          name: "Sucursal Principal",
+          slug: `${slug}-sucursal-principal`,
+          isDefault: true,
+          storeId: store.id,
+        },
+      });
+
       // Crear User como OWNER
       const user = await prisma.user.create({
         data: {
@@ -89,6 +99,11 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // Asignar user a branch default
+      await prisma.userBranch.create({
+        data: { userId: user.id, branchId: branch.id },
+      });
+
       return NextResponse.json({
         user: {
           id: user.id,
@@ -98,6 +113,7 @@ export async function POST(req: NextRequest) {
           role: user.role,
           storeId: store.id,
           storeName: store.name,
+          branches: [branch],
         },
       });
     }
@@ -138,6 +154,19 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Asignar user a branch default de la tienda
+    const defaultBranch = await prisma.branch.findFirst({
+      where: { storeId: settings.store.id, isDefault: true, isActive: true },
+    });
+
+    if (defaultBranch) {
+      await prisma.userBranch.create({
+        data: { userId: user.id, branchId: defaultBranch.id },
+      });
+    }
+
+    const userBranches = defaultBranch ? [defaultBranch] : [];
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -147,6 +176,7 @@ export async function POST(req: NextRequest) {
         role: user.role,
         storeId: settings.store.id,
         storeName: settings.store.name,
+        branches: userBranches,
       },
     });
   } catch (error: unknown) {
@@ -166,7 +196,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: "Error del servidor. Intentá de nuevo más tarde." },
+      { error: "Error al registrar usuario. Intentá de nuevo más tarde." },
       { status: 500 }
     );
   }

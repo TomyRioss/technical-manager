@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LuPaintbrush, LuSmartphone, LuPercent, LuTags, LuUsers, LuDownload } from "react-icons/lu";
+import { LuPaintbrush, LuSmartphone, LuPercent, LuTags, LuUsers, LuDownload, LuBuilding2 } from "react-icons/lu";
 
 const configTabs = [
   { label: "General", href: "/dashboard/configuracion", icon: LuPaintbrush },
   { label: "Equipo", href: "/dashboard/configuracion/equipo", icon: LuUsers },
+  { label: "Sucursales", href: "/dashboard/configuracion/sucursales", icon: LuBuilding2 },
   { label: "Categorias", href: "/dashboard/configuracion/categorias", icon: LuTags },
   { label: "Dispositivos", href: "/dashboard/configuracion/dispositivos", icon: LuSmartphone },
   { label: "Comisiones", href: "/dashboard/configuracion/comisiones", icon: LuPercent },

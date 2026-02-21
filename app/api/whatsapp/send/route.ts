@@ -15,7 +15,8 @@ export async function POST(req: NextRequest) {
 
     const result = await sendWhatsAppMessage({ phone, message });
     return NextResponse.json(result);
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("POST /api/whatsapp/send error:", error);
+    return NextResponse.json({ error: "Error al enviar mensaje de WhatsApp" }, { status: 500 });
   }
 }

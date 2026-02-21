@@ -32,11 +32,12 @@ interface ClientOption {
 
 interface ClientSelectorProps {
   storeId: string;
+  branchId?: string;
   selectedId: string | null;
   onSelect: (client: ClientOption | null) => void;
 }
 
-export function ClientSelector({ storeId, selectedId, onSelect }: ClientSelectorProps) {
+export function ClientSelector({ storeId, branchId, selectedId, onSelect }: ClientSelectorProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ClientOption[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -47,6 +48,7 @@ export function ClientSelector({ storeId, selectedId, onSelect }: ClientSelector
   const [loadingDirectory, setLoadingDirectory] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [savingClient, setSavingClient] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Búsqueda en el input principal
@@ -56,10 +58,17 @@ export function ClientSelector({ storeId, selectedId, onSelect }: ClientSelector
       return;
     }
     const timer = setTimeout(async () => {
-      const res = await fetch(`/api/clients/search?storeId=${storeId}&q=${encodeURIComponent(query)}`);
-      if (res.ok) {
+      try {
+        const res = await fetch(`/api/clients/search?storeId=${storeId}${branchId ? `&branchId=${branchId}` : ""}&q=${encodeURIComponent(query)}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Error al buscar clientes");
+        }
         const data = await res.json();
         setResults(data);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Error al buscar clientes");
       }
     }, 300);
     return () => clearTimeout(timer);
@@ -69,9 +78,19 @@ export function ClientSelector({ storeId, selectedId, onSelect }: ClientSelector
   useEffect(() => {
     if (sheetOpen && allClients.length === 0) {
       setLoadingDirectory(true);
-      fetch(`/api/clients?storeId=${storeId}`)
-        .then((res) => res.ok ? res.json() : [])
-        .then((data) => setAllClients(data))
+      fetch(`/api/clients?storeId=${storeId}${branchId ? `&branchId=${branchId}` : ""}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Error al cargar el directorio de clientes");
+          return res.json();
+        })
+        .then((data) => {
+          setAllClients(data);
+          setError(null);
+        })
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : "Error al cargar clientes");
+          setAllClients([]);
+        })
         .finally(() => setLoadingDirectory(false));
     }
   }, [sheetOpen, storeId, allClients.length]);
@@ -102,16 +121,24 @@ export function ClientSelector({ storeId, selectedId, onSelect }: ClientSelector
 
   async function handleCreateClient(data: { name: string; phone: string; email: string; notes: string }) {
     setSavingClient(true);
-    const res = await fetch("/api/clients", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, storeId }),
-    });
-    if (res.ok) {
+    setError(null);
+    try {
+      const res = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, storeId, branchId }),
+      });
+      if (!res.ok) {
+        const resData = await res.json().catch(() => ({}));
+        throw new Error(resData.error || "Error al crear el cliente");
+      }
       const created = await res.json();
       handleSelect({ id: created.id, name: created.name, phone: created.phone, email: created.email, tag: created.tag });
       setCreateDialogOpen(false);
       setAllClients([]);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al crear el cliente");
     }
     setSavingClient(false);
   }
@@ -218,6 +245,8 @@ export function ClientSelector({ storeId, selectedId, onSelect }: ClientSelector
       >
         + Añadir cliente
       </button>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       {showResults && results.length > 0 && !selected && (
         <div className="absolute z-10 top-full mt-1 w-full bg-white border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">

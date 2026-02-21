@@ -7,25 +7,31 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useDashboard } from "@/contexts/dashboard-context";
 import type { StoreSettings } from "@/types/store-settings";
+import type { Branch } from "@/types/branch";
 import { LuUpload, LuLoaderCircle } from "react-icons/lu";
-import { HoursSelector } from "./hours-selector";
+import { BranchFieldsSection } from "./branch-fields-section";
 
 export function BrandingForm() {
-  const { storeId, storeName } = useDashboard();
+  const { storeId, storeName, branchId } = useDashboard();
   const [settings, setSettings] = useState<StoreSettings | null>(null);
+  const [currentBranch, setCurrentBranch] = useState<Branch | null>(null);
+  const [allBranches, setAllBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Store-level fields
   const [slug, setSlug] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#000000");
   const [welcomeMessage, setWelcomeMessage] = useState("");
   const [messageSignature, setMessageSignature] = useState("");
-  const [googleMapsUrl, setGoogleMapsUrl] = useState("");
-  const [whatsappNumber, setWhatsappNumber] = useState("");
   const [unretrievedDays, setUnretrievedDays] = useState("7");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  // Branch-level fields
+  const [googleMapsUrl, setGoogleMapsUrl] = useState("");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
   const [hoursWeekdays, setHoursWeekdays] = useState("");
   const [hoursSaturday, setHoursSaturday] = useState("");
   const [hoursSunday, setHoursSunday] = useState("");
@@ -36,72 +42,105 @@ export function BrandingForm() {
   const [tiktokUrl, setTiktokUrl] = useState("");
   const [twitterUrl, setTwitterUrl] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [phoneBranchRef, setPhoneBranchRef] = useState<string | null>(null);
+  const [socialBranchRef, setSocialBranchRef] = useState<string | null>(null);
+  const [hoursBranchRef, setHoursBranchRef] = useState<string | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    async function fetchSettings() {
+    async function fetchData() {
       setLoading(true);
-      const res = await fetch(`/api/store-settings?storeId=${storeId}`);
       const defaultSlug = storeName.trim().toLowerCase().replace(/\s+/g, "-");
-      if (res.ok) {
-        const data = await res.json();
+
+      const [settingsRes, branchRes, branchesRes] = await Promise.all([
+        fetch(`/api/store-settings?storeId=${storeId}`),
+        fetch(`/api/branches/${branchId}`),
+        fetch(`/api/branches?storeId=${storeId}`),
+      ]);
+
+      // Store-level from StoreSettings
+      if (settingsRes.ok) {
+        const data = await settingsRes.json();
         if (data) {
           setSettings(data);
-          // Si el slug es el storeId (UUID) o está vacío, usar storeName como default
           const savedSlug = data.slug;
           const isUuidSlug = savedSlug === storeId;
           setSlug(!savedSlug || isUuidSlug ? defaultSlug : savedSlug);
           setPrimaryColor(data.primaryColor ?? "#000000");
           setWelcomeMessage(data.welcomeMessage ?? "");
           setMessageSignature(data.messageSignature ?? "");
-          setGoogleMapsUrl(data.googleMapsUrl ?? "");
-          setWhatsappNumber(data.whatsappNumber ?? "");
           setUnretrievedDays(String(data.unretrievedDays ?? 7));
           setLogoUrl(data.logoUrl);
-          setFacebookUrl(data.facebookUrl ?? "");
-          setInstagramUrl(data.instagramUrl ?? "");
-          setTiktokUrl(data.tiktokUrl ?? "");
-          setTwitterUrl(data.twitterUrl ?? "");
-          setYoutubeUrl(data.youtubeUrl ?? "");
-          setStoreAddress(data.storeAddress ?? "");
-          if (data.businessHours) {
-            try {
-              const hours = JSON.parse(data.businessHours);
-              setHoursWeekdays(hours.weekdays ?? "");
-              setHoursSaturday(hours.saturday ?? "");
-              setHoursSunday(hours.sunday ?? "");
-            } catch {
-              // ignore
-            }
-          }
         } else {
           setSlug(defaultSlug);
         }
       } else {
         setSlug(defaultSlug);
       }
+
+      // All branches (for ref name resolution)
+      if (branchesRes.ok) {
+        const branches: Branch[] = await branchesRes.json();
+        setAllBranches(branches);
+      }
+
+      // Branch-level from current branch
+      if (branchRes.ok) {
+        const branch: Branch = await branchRes.json();
+        setCurrentBranch(branch);
+        populateBranchFields(branch);
+      }
+
       setLoading(false);
     }
-    fetchSettings();
-  }, [storeId, storeName]);
+
+    fetchData();
+  }, [storeId, storeName, branchId]);
+
+  function populateBranchFields(branch: Branch) {
+    setGoogleMapsUrl(branch.googleMapsUrl ?? "");
+    setWhatsappNumber(branch.whatsappNumber ?? "");
+    setStoreAddress(branch.address ?? "");
+    setFacebookUrl(branch.facebookUrl ?? "");
+    setInstagramUrl(branch.instagramUrl ?? "");
+    setTiktokUrl(branch.tiktokUrl ?? "");
+    setTwitterUrl(branch.twitterUrl ?? "");
+    setYoutubeUrl(branch.youtubeUrl ?? "");
+    setPhoneBranchRef(branch.phoneBranchRef);
+    setSocialBranchRef(branch.socialBranchRef);
+    setHoursBranchRef(branch.hoursBranchRef);
+    if (branch.businessHours) {
+      try {
+        const hours = JSON.parse(branch.businessHours);
+        setHoursWeekdays(hours.weekdays ?? "");
+        setHoursSaturday(hours.saturday ?? "");
+        setHoursSunday(hours.sunday ?? "");
+      } catch {
+        setHoursWeekdays("");
+        setHoursSaturday("");
+        setHoursSunday("");
+      }
+    } else {
+      setHoursWeekdays("");
+      setHoursSaturday("");
+      setHoursSunday("");
+    }
+  }
 
   const [logoError, setLogoError] = useState<string | null>(null);
   const allowedLogoTypes = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
 
   async function handleLogoUpload(file: File) {
     setLogoError(null);
-
     if (!allowedLogoTypes.includes(file.type)) {
       setLogoError("Formato no soportado. Usá PNG, JPG, WebP o SVG.");
       return;
     }
-
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
     formData.append("storeId", storeId);
-
     const res = await fetch("/api/upload/logo", { method: "POST", body: formData });
     if (res.ok) {
       const { url } = await res.json();
@@ -127,51 +166,102 @@ export function BrandingForm() {
           setStoreAddress(data.address);
         }
       }
-    } catch {}
+    } catch (err) {
+      console.error("Error resolving address from Maps:", err);
+    }
     setResolvingAddress(false);
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-
     setSaving(true);
     setError(null);
+
     const defaultSlug = storeName.trim().toLowerCase().replace(/\s+/g, "-");
     const finalSlug = slug.trim().toLowerCase().replace(/\s+/g, "-") || defaultSlug || storeId;
-    const businessHours = JSON.stringify({
-      weekdays: hoursWeekdays.trim() || null,
-      saturday: hoursSaturday.trim() || null,
-      sunday: hoursSunday.trim() || null,
-    });
-    const res = await fetch("/api/store-settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        storeId,
-        slug: finalSlug,
-        primaryColor,
-        welcomeMessage: welcomeMessage.trim() || null,
-        messageSignature: messageSignature.trim() || null,
-        googleMapsUrl: googleMapsUrl.trim() || null,
-        storeAddress: storeAddress.trim() || null,
-        whatsappNumber: whatsappNumber.trim() || null,
-        unretrievedDays: parseInt(unretrievedDays) || 7,
-        logoUrl,
-        businessHours,
-        facebookUrl: facebookUrl.trim() || null,
-        instagramUrl: instagramUrl.trim() || null,
-        tiktokUrl: tiktokUrl.trim() || null,
-        twitterUrl: twitterUrl.trim() || null,
-        youtubeUrl: youtubeUrl.trim() || null,
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setSettings(data);
-    } else {
-      const data = await res.json().catch(() => null);
-      setError(data?.error || `Error ${res.status}`);
+    const businessHours = hoursBranchRef
+      ? null
+      : JSON.stringify({
+          weekdays: hoursWeekdays.trim() || null,
+          saturday: hoursSaturday.trim() || null,
+          sunday: hoursSunday.trim() || null,
+        });
+
+    // Branch-level payload
+    const branchPayload = {
+      googleMapsUrl: googleMapsUrl.trim() || null,
+      address: storeAddress.trim() || null,
+      whatsappNumber: phoneBranchRef ? null : whatsappNumber.trim() || null,
+      businessHours,
+      facebookUrl: socialBranchRef ? null : facebookUrl.trim() || null,
+      instagramUrl: socialBranchRef ? null : instagramUrl.trim() || null,
+      tiktokUrl: socialBranchRef ? null : tiktokUrl.trim() || null,
+      twitterUrl: socialBranchRef ? null : twitterUrl.trim() || null,
+      youtubeUrl: socialBranchRef ? null : youtubeUrl.trim() || null,
+      phoneBranchRef,
+      socialBranchRef,
+      hoursBranchRef,
+    };
+
+    // Store-level payload (+ branch-level for backward compat if default branch)
+    const storePayload: Record<string, unknown> = {
+      storeId,
+      slug: finalSlug,
+      primaryColor,
+      welcomeMessage: welcomeMessage.trim() || null,
+      messageSignature: messageSignature.trim() || null,
+      unretrievedDays: parseInt(unretrievedDays) || 7,
+      logoUrl,
+    };
+
+    // If default branch, also save branch-level to StoreSettings for backward compat
+    if (currentBranch?.isDefault) {
+      storePayload.googleMapsUrl = branchPayload.googleMapsUrl;
+      storePayload.storeAddress = branchPayload.address;
+      storePayload.whatsappNumber = branchPayload.whatsappNumber;
+      storePayload.businessHours = branchPayload.businessHours;
+      storePayload.facebookUrl = branchPayload.facebookUrl;
+      storePayload.instagramUrl = branchPayload.instagramUrl;
+      storePayload.tiktokUrl = branchPayload.tiktokUrl;
+      storePayload.twitterUrl = branchPayload.twitterUrl;
+      storePayload.youtubeUrl = branchPayload.youtubeUrl;
     }
+
+    try {
+      const [storeRes, branchRes] = await Promise.all([
+        fetch("/api/store-settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(storePayload),
+        }),
+        fetch(`/api/branches/${branchId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(branchPayload),
+        }),
+      ]);
+
+      if (storeRes.ok) {
+        const data = await storeRes.json();
+        setSettings(data);
+      } else {
+        const data = await storeRes.json().catch(() => null);
+        setError(data?.error || `Error ${storeRes.status} al guardar configuración`);
+        setSaving(false);
+        return;
+      }
+
+      if (!branchRes.ok) {
+        const data = await branchRes.json().catch(() => null);
+        setError(data?.error || `Error ${branchRes.status} al guardar sucursal`);
+        setSaving(false);
+        return;
+      }
+    } catch (err) {
+      console.error("Error saving settings:", err);
+      setError("Error de conexión al guardar");
+    }
+
     setSaving(false);
   }
 
@@ -261,18 +351,40 @@ export function BrandingForm() {
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="whatsappNumber">Número de WhatsApp</Label>
-        <Input
-          id="whatsappNumber"
-          placeholder="5491112345678"
-          value={whatsappNumber}
-          onChange={(e) => setWhatsappNumber(e.target.value)}
-        />
-        <p className="text-xs text-neutral-500">
-          Código de país + número, sin espacios ni guiones. Se usa en la tienda pública.
-        </p>
-      </div>
+      <BranchFieldsSection
+        whatsappNumber={whatsappNumber}
+        setWhatsappNumber={setWhatsappNumber}
+        phoneBranchRef={phoneBranchRef}
+        setPhoneBranchRef={setPhoneBranchRef}
+        googleMapsUrl={googleMapsUrl}
+        setGoogleMapsUrl={setGoogleMapsUrl}
+        storeAddress={storeAddress}
+        setStoreAddress={setStoreAddress}
+        resolvingAddress={resolvingAddress}
+        onMapsBlur={resolveAddressFromMaps}
+        hoursWeekdays={hoursWeekdays}
+        setHoursWeekdays={setHoursWeekdays}
+        hoursSaturday={hoursSaturday}
+        setHoursSaturday={setHoursSaturday}
+        hoursSunday={hoursSunday}
+        setHoursSunday={setHoursSunday}
+        hoursBranchRef={hoursBranchRef}
+        setHoursBranchRef={setHoursBranchRef}
+        facebookUrl={facebookUrl}
+        setFacebookUrl={setFacebookUrl}
+        instagramUrl={instagramUrl}
+        setInstagramUrl={setInstagramUrl}
+        tiktokUrl={tiktokUrl}
+        setTiktokUrl={setTiktokUrl}
+        twitterUrl={twitterUrl}
+        setTwitterUrl={setTwitterUrl}
+        youtubeUrl={youtubeUrl}
+        setYoutubeUrl={setYoutubeUrl}
+        socialBranchRef={socialBranchRef}
+        setSocialBranchRef={setSocialBranchRef}
+        allBranches={allBranches}
+        currentBranchId={branchId}
+      />
 
       <div className="space-y-2">
         <Label htmlFor="unretrievedDays">Días para alerta de equipo sin retirar</Label>
@@ -283,121 +395,6 @@ export function BrandingForm() {
           value={unretrievedDays}
           onChange={(e) => setUnretrievedDays(e.target.value)}
           className="w-24"
-        />
-      </div>
-
-      <hr className="my-4" />
-      <h3 className="font-semibold text-neutral-800">Tienda Pública - Ubicación</h3>
-
-      <div className="space-y-2">
-        <Label htmlFor="googleMapsUrl">Link de Google Maps</Label>
-        <Input
-          id="googleMapsUrl"
-          placeholder="https://maps.google.com/... o https://maps.app.goo.gl/..."
-          value={googleMapsUrl}
-          onChange={(e) => setGoogleMapsUrl(e.target.value)}
-          onBlur={(e) => resolveAddressFromMaps(e.target.value)}
-        />
-        <p className="text-xs text-neutral-500">
-          Pegá el link de tu ubicación en Google Maps. Se mostrará el mapa en la tienda pública.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="storeAddress">Dirección</Label>
-        <div className="relative">
-          <Textarea
-            id="storeAddress"
-            placeholder="Av. Ejemplo 1234, Local 45&#10;Ciudad, País"
-            value={storeAddress}
-            onChange={(e) => setStoreAddress(e.target.value)}
-            rows={2}
-          />
-          {resolvingAddress && (
-            <div className="absolute right-2 top-2">
-              <LuLoaderCircle className="h-4 w-4 animate-spin text-neutral-400" />
-            </div>
-          )}
-        </div>
-        <p className="text-xs text-neutral-500">
-          Se completa automáticamente al pegar el link de Google Maps. Podés editarla manualmente.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Horarios de atención</Label>
-        <div className="space-y-4">
-          <HoursSelector
-            label="Lunes a Viernes"
-            value={hoursWeekdays}
-            onChange={setHoursWeekdays}
-          />
-          <HoursSelector
-            label="Sábado"
-            value={hoursSaturday}
-            onChange={setHoursSaturday}
-          />
-          <HoursSelector
-            label="Domingo"
-            value={hoursSunday}
-            onChange={setHoursSunday}
-          />
-        </div>
-      </div>
-
-      <hr className="my-4" />
-      <h3 className="font-semibold text-neutral-800">Redes Sociales</h3>
-      <p className="text-sm text-neutral-500 mb-4">
-        Links a tus redes sociales que aparecerán en el footer de tu tienda pública.
-      </p>
-
-      <div className="space-y-2">
-        <Label htmlFor="facebookUrl">Facebook</Label>
-        <Input
-          id="facebookUrl"
-          placeholder="https://facebook.com/tu-pagina"
-          value={facebookUrl}
-          onChange={(e) => setFacebookUrl(e.target.value)}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="instagramUrl">Instagram</Label>
-        <Input
-          id="instagramUrl"
-          placeholder="https://instagram.com/tu-cuenta"
-          value={instagramUrl}
-          onChange={(e) => setInstagramUrl(e.target.value)}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="tiktokUrl">TikTok</Label>
-        <Input
-          id="tiktokUrl"
-          placeholder="https://tiktok.com/@tu-cuenta"
-          value={tiktokUrl}
-          onChange={(e) => setTiktokUrl(e.target.value)}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="twitterUrl">Twitter / X</Label>
-        <Input
-          id="twitterUrl"
-          placeholder="https://x.com/tu-cuenta"
-          value={twitterUrl}
-          onChange={(e) => setTwitterUrl(e.target.value)}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="youtubeUrl">YouTube</Label>
-        <Input
-          id="youtubeUrl"
-          placeholder="https://youtube.com/@tu-canal"
-          value={youtubeUrl}
-          onChange={(e) => setYoutubeUrl(e.target.value)}
         />
       </div>
 

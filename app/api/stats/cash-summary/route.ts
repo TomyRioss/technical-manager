@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET(req: NextRequest) {
   try {
     const storeId = req.nextUrl.searchParams.get("storeId");
+    const branchId = req.nextUrl.searchParams.get("branchId");
     const period = req.nextUrl.searchParams.get("period") ?? "today";
 
     if (!storeId) {
@@ -38,45 +39,37 @@ export async function GET(req: NextRequest) {
     }
 
     // Current period - orders delivered
+    const orderWhere: Record<string, unknown> = { storeId, status: "ENTREGADO", updatedAt: { gte: start }, isActive: true };
+    if (branchId) orderWhere.branchId = branchId;
+
     const currentOrders = await prisma.workOrder.findMany({
-      where: {
-        storeId,
-        status: "ENTREGADO",
-        updatedAt: { gte: start },
-        isActive: true,
-      },
+      where: orderWhere,
       select: { agreedPrice: true },
     });
 
     // Previous period
+    const prevOrderWhere: Record<string, unknown> = { storeId, status: "ENTREGADO", updatedAt: { gte: prevStart, lt: prevEnd }, isActive: true };
+    if (branchId) prevOrderWhere.branchId = branchId;
+
     const prevOrders = await prisma.workOrder.findMany({
-      where: {
-        storeId,
-        status: "ENTREGADO",
-        updatedAt: { gte: prevStart, lt: prevEnd },
-        isActive: true,
-      },
+      where: prevOrderWhere,
       select: { agreedPrice: true },
     });
 
     // Current period - receipts
+    const receiptWhere: Record<string, unknown> = { storeId, status: "COMPLETED", createdAt: { gte: start }, isActive: true };
+    if (branchId) receiptWhere.branchId = branchId;
+
     const currentReceipts = await prisma.receipt.findMany({
-      where: {
-        storeId,
-        status: "COMPLETED",
-        createdAt: { gte: start },
-        isActive: true,
-      },
+      where: receiptWhere,
       select: { total: true, commissionAmount: true },
     });
 
+    const prevReceiptWhere: Record<string, unknown> = { storeId, status: "COMPLETED", createdAt: { gte: prevStart, lt: prevEnd }, isActive: true };
+    if (branchId) prevReceiptWhere.branchId = branchId;
+
     const prevReceipts = await prisma.receipt.findMany({
-      where: {
-        storeId,
-        status: "COMPLETED",
-        createdAt: { gte: prevStart, lt: prevEnd },
-        isActive: true,
-      },
+      where: prevReceiptWhere,
       select: { total: true, commissionAmount: true },
     });
 
@@ -102,7 +95,13 @@ export async function GET(req: NextRequest) {
       grandTotal: currentOrdersTotal + currentReceiptsTotal,
       prevGrandTotal: prevOrdersTotal + prevReceiptsTotal,
     });
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("GET /api/stats/cash-summary error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al obtener resumen de caja" }, { status: 500 });
   }
 }

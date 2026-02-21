@@ -24,22 +24,25 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { LuCopy, LuRefreshCw, LuTrash2, LuUser } from "react-icons/lu";
+import { UserBranchAssignment } from "./user-branch-assignment";
 
 interface TeamMember {
   id: string;
   name: string;
   email: string;
-  role: "OWNER" | "TECHNICIAN";
+  role: "OWNER" | "MANAGER" | "TECHNICIAN";
   profileImage: string | null;
+  userBranches?: { branch: { id: string; name: string; isDefault: boolean } }[];
 }
 
 export function TeamSection() {
-  const { storeId } = useDashboard();
+  const { storeId, userId } = useDashboard();
   const [inviteCode, setInviteCode] = useState<string>("");
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [regenerating, setRegenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -55,7 +58,6 @@ export function TeamSection() {
           if (settings.inviteCode) {
             setInviteCode(settings.inviteCode);
           } else {
-            // Generar código para tiendas existentes sin código
             const genRes = await fetch("/api/store-settings/invite-code", {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
@@ -89,48 +91,63 @@ export function TeamSection() {
 
   async function handleRegenerateCode() {
     setRegenerating(true);
+    setError(null);
     try {
       const res = await fetch("/api/store-settings/invite-code", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ storeId }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setInviteCode(data.inviteCode);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Error al regenerar el código");
       }
-    } catch (error) {
-      console.error("Error regenerating code:", error);
+      const data = await res.json();
+      setInviteCode(data.inviteCode);
+      setError(null);
+    } catch (err) {
+      console.error("Error regenerating code:", err);
+      setError(err instanceof Error ? err.message : "Error al regenerar el código");
     }
     setRegenerating(false);
   }
 
-  async function handleRoleChange(userId: string, newRole: "OWNER" | "TECHNICIAN") {
+  async function handleRoleChange(memberId: string, newRole: "OWNER" | "MANAGER" | "TECHNICIAN") {
+    setError(null);
     try {
-      const res = await fetch(`/api/users/${userId}`, {
+      const res = await fetch(`/api/users/${memberId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: newRole }),
       });
-      if (res.ok) {
-        const updated = await res.json();
-        setMembers((prev) =>
-          prev.map((m) => (m.id === userId ? { ...m, role: updated.role } : m))
-        );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Error al cambiar el rol");
       }
-    } catch (error) {
-      console.error("Error updating role:", error);
+      const updated = await res.json();
+      setMembers((prev) =>
+        prev.map((m) => (m.id === memberId ? { ...m, role: updated.role } : m))
+      );
+      setError(null);
+    } catch (err) {
+      console.error("Error updating role:", err);
+      setError(err instanceof Error ? err.message : "Error al cambiar el rol");
     }
   }
 
-  async function handleRemoveMember(userId: string) {
+  async function handleRemoveMember(memberId: string) {
+    setError(null);
     try {
-      const res = await fetch(`/api/users/${userId}`, { method: "DELETE" });
-      if (res.ok) {
-        setMembers((prev) => prev.filter((m) => m.id !== userId));
+      const res = await fetch(`/api/users/${memberId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Error al eliminar el miembro");
       }
-    } catch (error) {
-      console.error("Error removing member:", error);
+      setMembers((prev) => prev.filter((m) => m.id !== memberId));
+      setError(null);
+    } catch (err) {
+      console.error("Error removing member:", err);
+      setError(err instanceof Error ? err.message : "Error al eliminar el miembro");
     }
   }
 
@@ -173,6 +190,8 @@ export function TeamSection() {
         </Button>
       </section>
 
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
       <hr />
 
       <section className="space-y-4">
@@ -188,68 +207,80 @@ export function TeamSection() {
           {members.map((member) => (
             <div
               key={member.id}
-              className="flex items-center justify-between rounded-lg border border-neutral-200 p-4"
+              className="rounded-lg border border-neutral-200 p-4 space-y-3"
             >
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100">
-                  {member.profileImage ? (
-                    <img
-                      src={member.profileImage}
-                      alt={member.name}
-                      className="h-10 w-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <LuUser className="h-5 w-5 text-neutral-500" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100">
+                    {member.profileImage ? (
+                      <img
+                        src={member.profileImage}
+                        alt={member.name}
+                        className="h-10 w-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <LuUser className="h-5 w-5 text-neutral-500" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium text-neutral-900">{member.name}</p>
+                    <p className="text-sm text-neutral-500">{member.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={member.role}
+                    onValueChange={(value) =>
+                      handleRoleChange(member.id, value as "OWNER" | "MANAGER" | "TECHNICIAN")
+                    }
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="OWNER">Propietario</SelectItem>
+                      <SelectItem value="MANAGER">Gerente</SelectItem>
+                      <SelectItem value="TECHNICIAN">Técnico</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {member.role !== "OWNER" && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                          <LuTrash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Eliminar miembro</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            ¿Estás seguro de que querés eliminar a {member.name} del equipo?
+                            Esta acción no se puede deshacer.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleRemoveMember(member.id)}
+                            className="bg-red-500 hover:bg-red-600"
+                          >
+                            Eliminar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   )}
                 </div>
-                <div>
-                  <p className="font-medium text-neutral-900">{member.name}</p>
-                  <p className="text-sm text-neutral-500">{member.email}</p>
-                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={member.role}
-                  onValueChange={(value) =>
-                    handleRoleChange(member.id, value as "OWNER" | "TECHNICIAN")
-                  }
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="OWNER">Propietario</SelectItem>
-                    <SelectItem value="TECHNICIAN">Técnico</SelectItem>
-                  </SelectContent>
-                </Select>
-                {member.role !== "OWNER" && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600 hover:bg-red-50">
-                        <LuTrash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Eliminar miembro</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          ¿Estás seguro de que querés eliminar a {member.name} del equipo?
-                          Esta acción no se puede deshacer.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleRemoveMember(member.id)}
-                          className="bg-red-500 hover:bg-red-600"
-                        >
-                          Eliminar
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </div>
+              {/* Branch assignment for non-OWNER users */}
+              {member.role !== "OWNER" && (
+                <UserBranchAssignment
+                  memberId={member.id}
+                  storeId={storeId}
+                  currentUserId={userId}
+                  currentBranches={member.userBranches?.map((ub) => ub.branch) ?? []}
+                />
+              )}
             </div>
           ))}
           {members.length === 0 && (

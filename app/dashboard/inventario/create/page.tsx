@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { LuUpload } from "react-icons/lu";
 
 function generateSku(): string {
@@ -28,6 +29,7 @@ function generateSku(): string {
 
 const emptyProduct: Omit<Product, "id"> = {
   name: "",
+  description: "",
   sku: generateSku(),
   costPrice: 0,
   price: 0,
@@ -157,6 +159,17 @@ export default function CreateProductPage() {
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="Nombre del producto"
             autoFocus
+          />
+        </div>
+
+        {/* Descripción */}
+        <div className="space-y-2">
+          <Label>Descripción (opcional)</Label>
+          <Textarea
+            value={form.description || ""}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            placeholder="Descripción del producto"
+            rows={3}
           />
         </div>
 
@@ -504,6 +517,17 @@ export default function CreateProductPage() {
       {/* Campos opcionales */}
       <div className="space-y-4">
         <h3 className="font-semibold text-lg">Campos opcionales</h3>
+
+        {/* Descripción */}
+        <div className="space-y-2">
+          <Label>Descripción</Label>
+          <Textarea
+            value={form.description || ""}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            placeholder="Descripción del producto"
+            rows={3}
+          />
+        </div>
 
         {/* Imagen */}
         <div className="space-y-2">

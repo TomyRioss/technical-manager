@@ -101,6 +101,18 @@ export function getMinimumPlanForFeature(feature: StoreFeature): StorePlan {
   return "ENTERPRISE";
 }
 
+export const PLAN_BRANCH_LIMITS: Record<StorePlan, number> = {
+  FREE: 1,
+  DEMO: 1,
+  BASIC: 3,
+  PRO: 5,
+  ENTERPRISE: 15,
+};
+
+export function getPlanBranchLimit(plan: StorePlan): number {
+  return PLAN_BRANCH_LIMITS[plan] ?? 1;
+}
+
 export function isReadOnlyPlan(plan: string): boolean {
   return plan === "FREE";
 }

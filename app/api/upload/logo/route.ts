@@ -38,6 +38,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url: publicUrlData.publicUrl });
   } catch (err) {
     console.error("[upload/logo] Server error:", err);
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+    return NextResponse.json({ error: "Error al subir el logo" }, { status: 500 });
   }
 }

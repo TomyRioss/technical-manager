@@ -11,15 +11,13 @@ interface Item {
 
 interface TiendaProductGridProps {
   items: Item[];
-  whatsappNumber: string | null;
-  storeName: string;
+  slug: string;
   primaryColor: string;
 }
 
 export function TiendaProductGrid({
   items,
-  whatsappNumber,
-  storeName,
+  slug,
   primaryColor,
 }: TiendaProductGridProps) {
   if (items.length === 0) {
@@ -35,13 +33,13 @@ export function TiendaProductGrid({
       {items.map((item) => (
         <TiendaProductCard
           key={item.id}
+          id={item.id}
+          slug={slug}
           name={item.name}
           salePrice={item.salePrice}
           stock={item.stock}
           imageUrl={item.imageUrl}
           category={item.category}
-          whatsappNumber={whatsappNumber}
-          storeName={storeName}
           primaryColor={primaryColor}
         />
       ))}

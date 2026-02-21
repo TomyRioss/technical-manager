@@ -22,23 +22,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Tienda no encontrada" }, { status: 404 });
     }
 
-    const featuredProducts = await prisma.item.findMany({
-      where: {
-        storeId: settings.storeId,
-        isActive: true,
-        stock: { gt: 0 },
-        imageUrl: { not: null },
-      },
-      select: {
-        id: true,
-        name: true,
-        salePrice: true,
-        imageUrl: true,
-      },
-      take: 6,
-      orderBy: { createdAt: "desc" },
-    });
-
+    // Search order in ALL branches of the store
     const order = await prisma.workOrder.findFirst({
       where: {
         storeId: settings.storeId,
@@ -54,6 +38,7 @@ export async function GET(req: NextRequest) {
         warrantyDays: true,
         warrantyExpires: true,
         warrantyStatus: true,
+        branchId: true,
         createdAt: true,
         updatedAt: true,
         photos: {
@@ -72,6 +57,29 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
     }
 
+    // Featured products from the branch of the found order
+    const featuredWhere: Record<string, unknown> = {
+      storeId: settings.storeId,
+      isActive: true,
+      stock: { gt: 0 },
+      imageUrl: { not: null },
+    };
+    if (order.branchId) {
+      featuredWhere.branchId = order.branchId;
+    }
+
+    const featuredProducts = await prisma.item.findMany({
+      where: featuredWhere,
+      select: {
+        id: true,
+        name: true,
+        salePrice: true,
+        imageUrl: true,
+      },
+      take: 6,
+      orderBy: { createdAt: "desc" },
+    });
+
     return NextResponse.json({
       store: {
         name: settings.store.name,
@@ -83,7 +91,13 @@ export async function GET(req: NextRequest) {
       order,
       featuredProducts,
     });
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("GET /api/tracking error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al obtener seguimiento" }, { status: 500 });
   }
 }

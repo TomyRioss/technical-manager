@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OrderCard } from "@/components/orders/order-card";
@@ -16,36 +17,16 @@ import { useStorePlan } from "@/hooks/use-store-plan";
 type ViewTab = "todas" | "mias" | "activas";
 
 export default function OrdenesPage() {
-  const { storeId, userId } = useDashboard();
+  const { storeId, userId, branchId } = useDashboard();
   const { isReadOnly } = useStorePlan();
-  const [orders, setOrders] = useState<WorkOrder[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<ViewTab>("todas");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [technicianFilter, setTechnicianFilter] = useState("ALL");
-  const [technicians, setTechnicians] = useState<{ id: string; name: string }[]>([]);
 
-  const fetchOrders = useCallback(async () => {
-    const res = await fetch(`/api/work-orders?storeId=${storeId}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    setOrders(data);
-  }, [storeId]);
-
-  useEffect(() => {
-    setLoading(true);
-    fetchOrders().finally(() => setLoading(false));
-  }, [fetchOrders]);
-
-  useEffect(() => {
-    async function fetchTechnicians() {
-      const res = await fetch(`/api/users?storeId=${storeId}`);
-      if (res.ok) setTechnicians(await res.json());
-    }
-    fetchTechnicians();
-  }, [storeId]);
+  const { data: orders = [], isLoading: loading } = useSWR<WorkOrder[]>(`/api/work-orders?storeId=${storeId}&branchId=${branchId}`);
+  const { data: technicians = [] } = useSWR<{ id: string; name: string }[]>(`/api/users?storeId=${storeId}`);
 
   const filtered = orders.filter((o) => {
     // Tab filter

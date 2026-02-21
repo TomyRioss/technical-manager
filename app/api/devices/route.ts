@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(brands);
   } catch (err) {
     console.error("GET /api/devices error:", err);
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+    return NextResponse.json({ error: "Error al obtener dispositivos" }, { status: 500 });
   }
 }
 

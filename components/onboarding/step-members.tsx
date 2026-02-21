@@ -12,13 +12,20 @@ interface StepMembersProps {
 export function StepMembers({ storeId }: StepMembersProps) {
   const [inviteCode, setInviteCode] = useState("");
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchCode() {
-      const res = await fetch(`/api/store-settings?storeId=${storeId}`);
-      if (res.ok) {
+      try {
+        const res = await fetch(`/api/store-settings?storeId=${storeId}`);
+        if (!res.ok) {
+          throw new Error("Error al cargar el código de invitación");
+        }
         const data = await res.json();
         if (data?.inviteCode) setInviteCode(data.inviteCode);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Error al cargar el código de invitación");
       }
     }
     fetchCode();
@@ -45,6 +52,8 @@ export function StepMembers({ storeId }: StepMembersProps) {
           Compartí este código para que otros miembros se unan a tu tienda.
         </p>
       </div>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       {inviteCode ? (
         <div className="space-y-3">

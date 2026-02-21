@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { DashboardProvider } from "@/contexts/dashboard-context";
+import { SWRProvider } from "@/providers/swr-provider";
+import { clearSWRCache } from "@/lib/swr-cache";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { BranchSelector } from "@/components/branch-selector";
 import {
   LuLogOut,
   LuHouse,
@@ -30,13 +33,20 @@ interface NavTab {
 }
 
 const allTabs: NavTab[] = [
-  { label: "Inicio", href: "/dashboard", icon: LuHouse, roles: ["OWNER", "TECHNICIAN"] },
-  { label: "Inventario", href: "/dashboard/inventario", icon: LuPackage, roles: ["OWNER"] },
-  { label: "Órdenes", href: "/dashboard/ordenes", icon: LuWrench, roles: ["OWNER", "TECHNICIAN"] },
-  { label: "Clientes", href: "/dashboard/clientes", icon: LuUsers, roles: ["OWNER", "TECHNICIAN"], size: "small" },
-  { label: "Recibos", href: "/dashboard/recibos", icon: LuReceipt, roles: ["OWNER"], size: "small" },
+  { label: "Inicio", href: "/dashboard", icon: LuHouse, roles: ["OWNER", "MANAGER", "TECHNICIAN"] },
+  { label: "Inventario", href: "/dashboard/inventario", icon: LuPackage, roles: ["OWNER", "MANAGER"] },
+  { label: "Órdenes", href: "/dashboard/ordenes", icon: LuWrench, roles: ["OWNER", "MANAGER", "TECHNICIAN"] },
+  { label: "Clientes", href: "/dashboard/clientes", icon: LuUsers, roles: ["OWNER", "MANAGER", "TECHNICIAN"], size: "small" },
+  { label: "Recibos", href: "/dashboard/recibos", icon: LuReceipt, roles: ["OWNER", "MANAGER"], size: "small" },
   { label: "Config", href: "/dashboard/configuracion", icon: LuSettings, roles: ["OWNER"], size: "small" },
 ];
+
+interface BranchData {
+  id: string;
+  name: string;
+  slug: string;
+  isDefault: boolean;
+}
 
 export default function DashboardLayout({
   children,
@@ -55,6 +65,14 @@ export default function DashboardLayout({
   const [storeSlug, setStoreSlug] = useState<string>("");
   const [storePlan, setStorePlan] = useState<StorePlan>("FREE");
   const [planExpiresAt, setPlanExpiresAt] = useState<string | null>(null);
+  const [planLoaded, setPlanLoaded] = useState(false);
+
+  // Branch state
+  const [branches, setBranches] = useState<BranchData[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+  const [selectedBranchName, setSelectedBranchName] = useState<string>("");
+  const [selectedBranchSlug, setSelectedBranchSlug] = useState<string>("");
+  const [branchesLoaded, setBranchesLoaded] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem("user");
@@ -65,7 +83,9 @@ export default function DashboardLayout({
         if (user.storeId) setStoreId(user.storeId);
         if (user.id) setUserId(user.id);
         if (user.role) setUserRole(user.role);
-      } catch {}
+      } catch (error: unknown) {
+        console.error("Error al parsear datos del usuario:", error);
+      }
     }
   }, []);
 
@@ -101,11 +121,51 @@ export default function DashboardLayout({
       .then((data) => {
         if (data?.plan) setStorePlan(data.plan);
         setPlanExpiresAt(data?.planExpiresAt ?? null);
+        setPlanLoaded(true);
       })
-      .catch(() => {});
+      .catch(() => { setPlanLoaded(true); });
   }, [storeId]);
 
-  if (!storeId || !userId) {
+  // Fetch branches
+  const refetchBranches = useCallback(() => {
+    if (!userId || !storeId) return;
+    fetch(`/api/branches/my-branches?userId=${userId}&storeId=${storeId}`)
+      .then((res) => res.json())
+      .then((data: BranchData[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setBranches(data);
+
+          // Restore from localStorage or pick default
+          const saved = localStorage.getItem(`selectedBranchId_${storeId}`);
+          const savedBranch = saved ? data.find((b) => b.id === saved) : null;
+          const defaultBranch = savedBranch || data.find((b) => b.isDefault) || data[0];
+
+          setSelectedBranchId(defaultBranch.id);
+          setSelectedBranchName(defaultBranch.name);
+          setSelectedBranchSlug(defaultBranch.slug);
+        }
+        setBranchesLoaded(true);
+      })
+      .catch(() => { setBranchesLoaded(true); });
+  }, [userId, storeId]);
+
+  useEffect(() => {
+    refetchBranches();
+  }, [refetchBranches]);
+
+  function handleBranchChange(branchId: string) {
+    setSelectedBranchId(branchId);
+    const branch = branches.find((b) => b.id === branchId);
+    if (branch) {
+      setSelectedBranchName(branch.name);
+      setSelectedBranchSlug(branch.slug);
+      if (storeId) {
+        localStorage.setItem(`selectedBranchId_${storeId}`, branchId);
+      }
+    }
+  }
+
+  if (!storeId || !userId || !branchesLoaded) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-sm text-neutral-500">Cargando...</p>
@@ -138,37 +198,45 @@ export default function DashboardLayout({
               </span>
             )}
           </Link>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button className="cursor-pointer rounded-full focus:outline-none focus:ring-2 focus:ring-neutral-300">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-800 text-sm font-semibold text-white">
-                  {(userName || storeName).charAt(0).toUpperCase()}
-                </div>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-56 p-1">
-              {(userName || userEmail) && (
-                <div className="px-3 py-2 border-b border-neutral-200 mb-1">
-                  {userName && (
-                    <p className="text-sm font-medium text-neutral-900 truncate">{userName}</p>
-                  )}
-                  {userEmail && (
-                    <p className="text-xs text-neutral-500 truncate">{userEmail}</p>
-                  )}
-                </div>
-              )}
-              <button
-                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
-                onClick={() => {
-                  localStorage.removeItem("user");
-                  router.push("/");
-                }}
-              >
-                <LuLogOut className="h-4 w-4" />
-                Cerrar sesión
-              </button>
-            </PopoverContent>
-          </Popover>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <BranchSelector
+              branches={branches}
+              selectedBranchId={selectedBranchId}
+              onBranchChange={handleBranchChange}
+            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="cursor-pointer rounded-full focus:outline-none focus:ring-2 focus:ring-neutral-300">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-800 text-sm font-semibold text-white">
+                    {(userName || storeName).charAt(0).toUpperCase()}
+                  </div>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-56 p-1">
+                {(userName || userEmail) && (
+                  <div className="px-3 py-2 border-b border-neutral-200 mb-1">
+                    {userName && (
+                      <p className="text-sm font-medium text-neutral-900 truncate">{userName}</p>
+                    )}
+                    {userEmail && (
+                      <p className="text-xs text-neutral-500 truncate">{userEmail}</p>
+                    )}
+                  </div>
+                )}
+                <button
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                  onClick={() => {
+                    clearSWRCache();
+                    localStorage.removeItem("user");
+                    router.push("/");
+                  }}
+                >
+                  <LuLogOut className="h-4 w-4" />
+                  Cerrar sesión
+                </button>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
         {/* Tabs */}
         <nav className="flex items-center gap-0 px-3 sm:px-6 overflow-x-auto">
@@ -206,10 +274,12 @@ export default function DashboardLayout({
 
       {/* Content */}
       <main className="flex-1 p-4 sm:p-6">
-        <DashboardProvider storeId={storeId} storeName={storeName} storeSlug={storeSlug} storePlan={storePlan} planExpiresAt={planExpiresAt} userId={userId} userRole={userRole}>
-          <TrialBanner />
-          {children}
-        </DashboardProvider>
+        <SWRProvider>
+          <DashboardProvider storeId={storeId} storeName={storeName} storeSlug={storeSlug} storePlan={storePlan} planExpiresAt={planExpiresAt} userId={userId} userRole={userRole} branchId={selectedBranchId} branchName={selectedBranchName} branchSlug={selectedBranchSlug} refetchBranches={refetchBranches}>
+            {planLoaded && <TrialBanner />}
+            {children}
+          </DashboardProvider>
+        </SWRProvider>
       </main>
     </div>
   );

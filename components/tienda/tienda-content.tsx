@@ -6,6 +6,7 @@ import { TiendaFilters } from "./tienda-filters";
 import { TiendaProductGrid } from "./tienda-product-grid";
 import { TiendaLocation } from "./tienda-location";
 import { TiendaFooter } from "./tienda-footer";
+import { TiendaCartDrawer } from "./tienda-cart-drawer";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -33,6 +34,8 @@ interface TiendaContentProps {
   tiktokUrl: string | null;
   twitterUrl: string | null;
   items: Item[];
+  slug: string;
+  branchId: string;
 }
 
 export function TiendaContent({
@@ -48,6 +51,8 @@ export function TiendaContent({
   tiktokUrl,
   twitterUrl,
   items,
+  slug,
+  branchId,
 }: TiendaContentProps) {
   const [searchValue, setSearchValue] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -113,8 +118,7 @@ export function TiendaContent({
 
         <TiendaProductGrid
           items={paginatedItems}
-          whatsappNumber={whatsappNumber}
-          storeName={storeName}
+          slug={slug}
           primaryColor={primaryColor}
         />
 
@@ -157,6 +161,12 @@ export function TiendaContent({
         instagramUrl={instagramUrl}
         tiktokUrl={tiktokUrl}
         twitterUrl={twitterUrl}
+      />
+
+      <TiendaCartDrawer
+        slug={slug}
+        branchId={branchId}
+        whatsappNumber={whatsappNumber}
       />
     </div>
   );

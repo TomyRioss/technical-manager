@@ -20,6 +20,7 @@ import {
   LuLoaderCircle,
 } from "react-icons/lu";
 import { formatPrice } from "@/lib/utils";
+import { OnlineOrdersSection } from "@/components/dashboard/online-orders-section";
 
 const MONTH_NAMES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -27,7 +28,7 @@ const MONTH_NAMES = [
 ];
 
 export default function DashboardPage() {
-  const { products, receipts, workOrders, storeSlug, userRole, loading } = useDashboard();
+  const { products, receipts, workOrders, storeSlug, branchSlug, userRole, loading } = useDashboard();
   const isOwner = userRole === "OWNER";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -40,9 +41,14 @@ export default function DashboardPage() {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
+  // Exclude pending online orders from stats
+  const isOnlinePending = (r: typeof receipts[0]) =>
+    r.status === "pendiente" && r.notes?.includes("[PEDIDO ONLINE]");
+
   const currentMonthReceipts = useMemo(
     () =>
       receipts.filter((r) => {
+        if (isOnlinePending(r)) return false;
         const d = new Date(r.createdAt);
         return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
       }),
@@ -69,6 +75,7 @@ export default function DashboardPage() {
   const prevMonthReceipts = useMemo(
     () =>
       receipts.filter((r) => {
+        if (isOnlinePending(r)) return false;
         const d = new Date(r.createdAt);
         return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
       }),
@@ -243,7 +250,7 @@ export default function DashboardPage() {
           </div>
           <div className="rounded-lg border border-green-200 bg-green-50 p-5">
             <div className="flex items-center gap-4">
-              <Link href={`/${storeSlug}/tienda`} target="_blank" className="flex flex-1 cursor-pointer items-center gap-4 rounded-md hover:bg-green-100 -m-2 p-2">
+              <Link href={`/${storeSlug}/tienda/${branchSlug}`} target="_blank" className="flex flex-1 cursor-pointer items-center gap-4 rounded-md hover:bg-green-100 -m-2 p-2">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-green-100">
                   <LuStore className="h-5 w-5 text-green-700" />
                 </div>
@@ -258,11 +265,11 @@ export default function DashboardPage() {
               <input
                 type="text"
                 readOnly
-                value={`${appUrl}/${storeSlug}/tienda`}
+                value={`${appUrl}/${storeSlug}/tienda/${branchSlug}`}
                 className="flex-1 rounded-md border border-green-200 bg-white px-3 py-1.5 text-xs text-neutral-700"
               />
               <button
-                onClick={() => navigator.clipboard.writeText(`${appUrl}/${storeSlug}/tienda`)}
+                onClick={() => navigator.clipboard.writeText(`${appUrl}/${storeSlug}/tienda/${branchSlug}`)}
                 className="flex cursor-pointer items-center gap-1 rounded-md bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-200"
               >
                 <LuCopy className="h-3.5 w-3.5" />
@@ -270,14 +277,14 @@ export default function DashboardPage() {
               </button>
               <button
                 onClick={async () => {
-                  const url = `${appUrl}/${storeSlug}/tienda`;
+                  const url = `${appUrl}/${storeSlug}/tienda/${branchSlug}`;
                   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
                   const response = await fetch(qrUrl);
                   const blob = await response.blob();
                   const blobUrl = URL.createObjectURL(blob);
                   const a = document.createElement("a");
                   a.href = blobUrl;
-                  a.download = `qr-tienda-${storeSlug}.png`;
+                  a.download = `qr-tienda-${storeSlug}-${branchSlug}.png`;
                   a.click();
                   URL.revokeObjectURL(blobUrl);
                 }}
@@ -375,9 +382,10 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Bajo stock + Recibos recientes - solo OWNER */}
+      {/* Pedidos online + Bajo stock + Recibos recientes - solo OWNER */}
       {isOwner && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <OnlineOrdersSection />
           {/* Bajo stock */}
           <div className="rounded-lg border border-neutral-200">
             <div className="flex items-center gap-2 border-b border-neutral-200 px-4 py-3">

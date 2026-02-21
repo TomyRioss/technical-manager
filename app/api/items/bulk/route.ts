@@ -14,10 +14,10 @@ interface BulkItem {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { storeId, items } = body as { storeId: string; items: BulkItem[] };
+    const { storeId, branchId, items } = body as { storeId: string; branchId: string; items: BulkItem[] };
 
-    if (!storeId) {
-      return NextResponse.json({ error: "storeId es requerido" }, { status: 400 });
+    if (!storeId || !branchId) {
+      return NextResponse.json({ error: "storeId y branchId son requeridos" }, { status: 400 });
     }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
           },
           create: {
             storeId,
+            branchId,
             sku: item.sku,
             name: item.name,
             stock: item.stock ?? 0,
