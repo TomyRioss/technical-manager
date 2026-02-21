@@ -35,7 +35,8 @@ interface DashboardContextType {
   updateProduct: (id: string, product: Omit<Product, "id">) => Promise<void>;
   updateProductCategory: (id: string, categoryId: string | null) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
-  toggleProductActive: (id: string) => Promise<void>;
+  toggleProductActive: (id: string, forceActive?: boolean) => Promise<void>;
+  bulkSetActive: (ids: string[], isActive: boolean) => void;
   getProduct: (id: string) => Product | undefined;
   setProductImage: (id: string, imageUrl: string) => void;
 
@@ -208,14 +209,16 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
     );
   }
 
-  async function toggleProductActive(id: string) {
+  async function toggleProductActive(id: string, forceActive?: boolean) {
     if (isReadOnlyPlan(storePlan)) return;
     const product = products.find((p) => p.id === id);
     if (!product) return;
+    const newActive = forceActive !== undefined ? forceActive : !product.active;
+    if (product.active === newActive) return;
     const res = await fetch(`/api/items/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: !product.active }),
+      body: JSON.stringify({ isActive: newActive }),
     });
     if (!res.ok) return;
     const item = await res.json();
@@ -225,6 +228,37 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
         (prev ?? []).map((p) => ((p.id as string) === id ? { ...p, isActive: item.isActive } : p)),
       { revalidate: false }
     );
+  }
+
+  function bulkSetActive(ids: string[], isActive: boolean) {
+    if (isReadOnlyPlan(storePlan)) return;
+    const idSet = new Set(ids);
+
+    // 1 sola mutación optimista
+    mutate(
+      productsKey,
+      (prev: Record<string, unknown>[] | undefined) =>
+        (prev ?? []).map((p) =>
+          idSet.has(p.id as string) ? { ...p, isActive } : p
+        ),
+      { revalidate: false }
+    );
+
+    // API calls en background, al terminar revalidar
+    Promise.all(
+      ids.map((id) =>
+        fetch(`/api/items/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive }),
+        })
+      )
+    ).then(() => {
+      mutate(productsKey);
+    }).catch((err) => {
+      console.error("Error en bulkSetActive:", err);
+      mutate(productsKey);
+    });
   }
 
   function getProduct(id: string) {
@@ -404,6 +438,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
         updateProductCategory,
         deleteProduct,
         toggleProductActive,
+        bulkSetActive,
         getProduct,
         setProductImage,
         receipts,

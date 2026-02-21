@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useDashboard } from "@/contexts/dashboard-context";
 import type { StoreSettings } from "@/types/store-settings";
 import type { Branch } from "@/types/branch";
-import { LuUpload, LuLoaderCircle } from "react-icons/lu";
+import { LuUpload, LuLoaderCircle, LuCheck } from "react-icons/lu";
 import { BranchFieldsSection } from "./branch-fields-section";
 
 export function BrandingForm() {
@@ -20,6 +20,7 @@ export function BrandingForm() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   // Store-level fields
   const [slug, setSlug] = useState("");
@@ -176,6 +177,7 @@ export function BrandingForm() {
     e.preventDefault();
     setSaving(true);
     setError(null);
+    setSuccess(false);
 
     const defaultSlug = storeName.trim().toLowerCase().replace(/\s+/g, "-");
     const finalSlug = slug.trim().toLowerCase().replace(/\s+/g, "-") || defaultSlug || storeId;
@@ -228,18 +230,11 @@ export function BrandingForm() {
     }
 
     try {
-      const [storeRes, branchRes] = await Promise.all([
-        fetch("/api/store-settings", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(storePayload),
-        }),
-        fetch(`/api/branches/${branchId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(branchPayload),
-        }),
-      ]);
+      const storeRes = await fetch("/api/store-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(storePayload),
+      });
 
       if (storeRes.ok) {
         const data = await storeRes.json();
@@ -251,12 +246,22 @@ export function BrandingForm() {
         return;
       }
 
-      if (!branchRes.ok) {
-        const data = await branchRes.json().catch(() => null);
-        setError(data?.error || `Error ${branchRes.status} al guardar sucursal`);
-        setSaving(false);
-        return;
+      if (branchId) {
+        const branchRes = await fetch(`/api/branches/${branchId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(branchPayload),
+        });
+
+        if (!branchRes.ok) {
+          const data = await branchRes.json().catch(() => null);
+          setError(data?.error || `Error ${branchRes.status} al guardar sucursal`);
+          setSaving(false);
+          return;
+        }
       }
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 4000);
     } catch (err) {
       console.error("Error saving settings:", err);
       setError("Error de conexión al guardar");
@@ -400,6 +405,13 @@ export function BrandingForm() {
 
       {error && (
         <p className="text-sm text-red-600">{error}</p>
+      )}
+
+      {success && (
+        <p className="flex items-center gap-1.5 text-sm text-green-600">
+          <LuCheck className="h-4 w-4" />
+          Configuración guardada exitosamente
+        </p>
       )}
 
       <Button type="submit" disabled={saving}>

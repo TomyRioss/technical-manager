@@ -49,7 +49,7 @@ function hasMissingData(product: Product): boolean {
 }
 
 export default function InventarioPage() {
-  const { products, deleteProduct, toggleProductActive, updateProductCategory, storeId, loading } = useDashboard();
+  const { products, deleteProduct, toggleProductActive, bulkSetActive, updateProductCategory, storeId, loading } = useDashboard();
   const { isReadOnly } = useStorePlan();
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -97,7 +97,7 @@ export default function InventarioPage() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedProducts = filtered.slice(startIndex, startIndex + itemsPerPage);
 
-  const allSelected = filtered.length > 0 && filtered.every((p) => selectedIds.has(p.id));
+  const allSelected = paginatedProducts.length > 0 && paginatedProducts.every((p) => selectedIds.has(p.id));
   const someSelected = selectedIds.size > 0;
 
   function handleDelete(id: string) {
@@ -121,7 +121,7 @@ export default function InventarioPage() {
     if (allSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filtered.map((p) => p.id)));
+      setSelectedIds(new Set(paginatedProducts.map((p) => p.id)));
     }
   }
 
@@ -171,6 +171,13 @@ export default function InventarioPage() {
     if (sortDir === "asc") return <LuArrowUp className="ml-1 h-3.5 w-3.5" />;
     return <LuArrowDown className="ml-1 h-3.5 w-3.5" />;
   }
+
+  function handleBulkSetActive(isActive: boolean) {
+    bulkSetActive(Array.from(selectedIds), isActive);
+  }
+
+  const selectedProducts = products.filter((p) => selectedIds.has(p.id));
+  const allSelectedActive = selectedProducts.length > 0 && selectedProducts.every((p) => p.active);
 
   async function handleBulkCategoryChange(categoryId: string | null) {
     await Promise.all(
@@ -482,6 +489,14 @@ export default function InventarioPage() {
                 />
               </PopoverContent>
             </Popover>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={allSelectedActive}
+                onCheckedChange={handleBulkSetActive}
+                disabled={isReadOnly}
+              />
+              <span className="text-sm">Activos</span>
+            </div>
             <Button
               variant="ghost"
               size="sm"

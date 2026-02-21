@@ -9,6 +9,7 @@ interface BulkItem {
   costPrice: number | null;
   salePrice: number | null;
   isActive: boolean;
+  category: string | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -30,9 +31,58 @@ export async function POST(request: NextRequest) {
       sku: item.sku || `IMP-${nanoid(8)}`,
     }));
 
+    // Resolver categorías: buscar existentes y crear las que faltan
+    const uniqueCategoryNames = [
+      ...new Set(
+        itemsWithSku
+          .map((item) => item.category?.trim())
+          .filter((name): name is string => !!name)
+      ),
+    ];
+
+    const categoryMap = new Map<string, string>();
+
+    if (uniqueCategoryNames.length > 0) {
+      const existingCategories = await prisma.category.findMany({
+        where: { storeId, name: { in: uniqueCategoryNames } },
+        select: { id: true, name: true },
+      });
+
+      for (const cat of existingCategories) {
+        categoryMap.set(cat.name, cat.id);
+      }
+
+      const missingNames = uniqueCategoryNames.filter(
+        (name) => !categoryMap.has(name)
+      );
+
+      if (missingNames.length > 0) {
+        await prisma.category.createMany({
+          data: missingNames.map((name) => ({
+            storeId,
+            name,
+          })),
+          skipDuplicates: true,
+        });
+
+        const newCategories = await prisma.category.findMany({
+          where: { storeId, name: { in: missingNames } },
+          select: { id: true, name: true },
+        });
+
+        for (const cat of newCategories) {
+          categoryMap.set(cat.name, cat.id);
+        }
+      }
+    }
+
     const createdItems = await Promise.all(
-      itemsWithSku.map((item) =>
-        prisma.item.upsert({
+      itemsWithSku.map((item) => {
+        const categoryId = item.category?.trim()
+          ? categoryMap.get(item.category.trim()) || null
+          : null;
+
+        return prisma.item.upsert({
           where: {
             storeId_sku: {
               storeId,
@@ -46,6 +96,7 @@ export async function POST(request: NextRequest) {
             salePrice: item.salePrice ?? 0,
             isActive: item.isActive,
             isDeleted: false,
+            categoryId,
           },
           create: {
             storeId,
@@ -56,9 +107,10 @@ export async function POST(request: NextRequest) {
             costPrice: item.costPrice,
             salePrice: item.salePrice ?? 0,
             isActive: item.isActive,
+            categoryId,
           },
-        })
-      )
+        });
+      })
     );
 
     return NextResponse.json({ created: createdItems.length, items: createdItems });

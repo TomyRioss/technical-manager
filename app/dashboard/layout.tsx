@@ -126,12 +126,15 @@ export default function DashboardLayout({
       .catch(() => { setPlanLoaded(true); });
   }, [storeId]);
 
-  // Fetch branches
+  // Fetch branches (auto-crea sucursal para tiendas legacy sin branches)
   const refetchBranches = useCallback(() => {
     if (!userId || !storeId) return;
     fetch(`/api/branches/my-branches?userId=${userId}&storeId=${storeId}`)
-      .then((res) => res.json())
-      .then((data: BranchData[]) => {
+      .then((res) => {
+        if (!res.ok) throw new Error(`Error al obtener sucursales (${res.status})`);
+        return res.json();
+      })
+      .then(async (data: BranchData[]) => {
         if (Array.isArray(data) && data.length > 0) {
           setBranches(data);
 
@@ -143,11 +146,41 @@ export default function DashboardLayout({
           setSelectedBranchId(defaultBranch.id);
           setSelectedBranchName(defaultBranch.name);
           setSelectedBranchSlug(defaultBranch.slug);
+          setBranchesLoaded(true);
+          return;
+        }
+
+        // Tienda legacy sin branches: si es OWNER, auto-crear sucursal
+        if (userRole === "OWNER") {
+          try {
+            const res = await fetch("/api/branches/ensure-default", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ storeId, userId }),
+            });
+            const result = await res.json();
+            if (result.created) {
+              // Re-fetch para cargar la branch recién creada
+              const branchRes = await fetch(`/api/branches/my-branches?userId=${userId}&storeId=${storeId}`);
+              if (branchRes.ok) {
+                const newData: BranchData[] = await branchRes.json();
+                if (Array.isArray(newData) && newData.length > 0) {
+                  setBranches(newData);
+                  const def = newData.find((b) => b.isDefault) || newData[0];
+                  setSelectedBranchId(def.id);
+                  setSelectedBranchName(def.name);
+                  setSelectedBranchSlug(def.slug);
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Error al crear sucursal por defecto:", err);
+          }
         }
         setBranchesLoaded(true);
       })
       .catch(() => { setBranchesLoaded(true); });
-  }, [userId, storeId]);
+  }, [userId, storeId, userRole]);
 
   useEffect(() => {
     refetchBranches();

@@ -98,7 +98,7 @@ export function BulkImportDialog({ open, onOpenChange }: BulkImportDialogProps) 
       setError(err instanceof Error ? err.message : "Error al verificar duplicados");
       setActiveDuplicates(new Set());
     }
-  }, [storeId]);
+  }, [storeId, branchId]);
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -216,6 +216,11 @@ export function BulkImportDialog({ open, onOpenChange }: BulkImportDialogProps) 
   const handleConfirm = useCallback(async () => {
     if (items.length === 0) return;
 
+    if (!storeId || !branchId) {
+      setError("No se pudo determinar la tienda o sucursal. Recargá la página e intentá de nuevo.");
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
@@ -239,7 +244,7 @@ export function BulkImportDialog({ open, onOpenChange }: BulkImportDialogProps) 
     } finally {
       setSaving(false);
     }
-  }, [items, storeId, onOpenChange]);
+  }, [items, storeId, branchId, onOpenChange]);
 
   const handleClose = useCallback(() => {
     setItems([]);
