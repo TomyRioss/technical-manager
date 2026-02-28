@@ -19,6 +19,7 @@ import {
   LuUsers,
   LuSettings,
   LuCircleHelp,
+  LuShoppingCart,
 } from "react-icons/lu";
 import type { UserRole } from "@/lib/auth-check";
 import type { StorePlan } from "@/lib/store-plans";
@@ -272,7 +273,7 @@ export default function DashboardLayout({
           </div>
         </div>
         {/* Tabs */}
-        <nav className="flex items-center gap-0 px-3 sm:px-6 overflow-x-auto">
+        {!pathname.startsWith('/dashboard/pos') && <nav className="flex items-center gap-0 px-3 sm:px-6 overflow-x-auto">
           {allTabs.filter((tab) => tab.roles.includes(userRole)).map((tab) => {
             const isActive = tab.href === "/dashboard"
               ? pathname === "/dashboard"
@@ -302,7 +303,7 @@ export default function DashboardLayout({
             <LuCircleHelp className="h-5 w-5 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Ayuda</span>
           </Link>
-        </nav>
+        </nav>}
       </header>
 
       {/* Content */}

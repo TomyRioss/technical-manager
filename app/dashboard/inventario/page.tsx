@@ -49,9 +49,12 @@ function hasMissingData(product: Product): boolean {
 }
 
 export default function InventarioPage() {
-  const { products, deleteProduct, toggleProductActive, bulkSetActive, updateProductCategory, storeId, loading } = useDashboard();
+  const { products, deleteProduct, toggleProductActive, bulkSetActive, updateProductCategory, updateProduct, setProductImage, storeId, loading } = useDashboard();
   const { isReadOnly } = useStorePlan();
   const [search, setSearch] = useState("");
+  const [editingStock, setEditingStock] = useState<{ id: string; value: string } | null>(null);
+  const [editingField, setEditingField] = useState<{ id: string; field: 'name' | 'sku' | 'costPrice' | 'price'; value: string } | null>(null);
+  const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -178,6 +181,44 @@ export default function InventarioPage() {
 
   const selectedProducts = products.filter((p) => selectedIds.has(p.id));
   const allSelectedActive = selectedProducts.length > 0 && selectedProducts.every((p) => p.active);
+
+  async function handleFieldSave(product: Product) {
+    if (!editingField || editingField.id !== product.id) return;
+    const { field, value } = editingField;
+    const trimmed = value.trim();
+    if ((field === 'name' || field === 'sku') && !trimmed) { setEditingField(null); return; }
+    if (field === 'costPrice' || field === 'price') {
+      const n = parseFloat(trimmed);
+      if (isNaN(n) || n < 0) { setEditingField(null); return; }
+      if (n === (product[field] ?? 0)) { setEditingField(null); return; }
+      await updateProduct(product.id, { ...product, [field]: n });
+    } else {
+      if (trimmed === product[field as 'name' | 'sku']) { setEditingField(null); return; }
+      await updateProduct(product.id, { ...product, [field]: trimmed });
+    }
+    setEditingField(null);
+  }
+
+  async function handleImageUpload(productId: string, file: File) {
+    setUploadingImageId(productId);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("itemId", productId);
+    const res = await fetch("/api/upload", { method: "POST", body: formData });
+    if (res.ok) {
+      const data = await res.json();
+      setProductImage(productId, data.url);
+    }
+    setUploadingImageId(null);
+  }
+
+  async function handleStockSave(product: Product) {
+    const newStock = parseInt(editingStock?.value ?? "", 10);
+    if (isNaN(newStock) || newStock < 0) { setEditingStock(null); return; }
+    if (newStock === product.stock) { setEditingStock(null); return; }
+    await updateProduct(product.id, { ...product, stock: newStock });
+    setEditingStock(null);
+  }
 
   async function handleBulkCategoryChange(categoryId: string | null) {
     await Promise.all(
@@ -335,33 +376,93 @@ export default function InventarioPage() {
                     />
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    {product.imageUrl ? (
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        className="h-8 w-8 rounded object-cover"
-                      />
-                    ) : (
-                      <div className="h-8 w-8 rounded bg-neutral-200" />
-                    )}
+                    <label className="group relative cursor-pointer block h-8 w-8">
+                      <input type="file" accept="image/*" className="sr-only" disabled={isReadOnly}
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(product.id, f); e.target.value = ''; }} />
+                      {uploadingImageId === product.id ? (
+                        <div className="h-8 w-8 rounded bg-neutral-100 flex items-center justify-center">
+                          <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />
+                        </div>
+                      ) : product.imageUrl ? (
+                        <>
+                          <img src={product.imageUrl} alt={product.name} className="h-8 w-8 rounded object-cover" />
+                          {!isReadOnly && <div className="absolute inset-0 rounded bg-black/40 hidden group-hover:flex items-center justify-center"><LuUpload className="h-3.5 w-3.5 text-white" /></div>}
+                        </>
+                      ) : (
+                        <div className="h-8 w-8 rounded bg-neutral-200 flex items-center justify-center group-hover:bg-neutral-300 transition-colors">
+                          {!isReadOnly && <LuUpload className="h-3.5 w-3.5 text-neutral-500 hidden group-hover:block" />}
+                        </div>
+                      )}
+                    </label>
                   </TableCell>
                   <TableCell className="font-medium">
-                    {product.name}
+                    {isReadOnly ? product.name : (
+                      <input
+                        className="bg-neutral-100 border border-neutral-200 rounded px-1.5 hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm font-medium w-full"
+                        value={editingField?.id === product.id && editingField.field === 'name' ? editingField.value : String(product.name ?? '')}
+                        onFocus={() => setEditingField({ id: product.id, field: 'name', value: String(product.name ?? '') })}
+                        onChange={(e) => setEditingField({ id: product.id, field: 'name', value: e.target.value })}
+                        onBlur={() => handleFieldSave(product)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingField(null); }}
+                      />
+                    )}
                   </TableCell>
                   <TableCell className="text-neutral-500 hidden md:table-cell">
                     {product.categoryName || "—"}
                   </TableCell>
                   <TableCell className="text-neutral-500 hidden md:table-cell">
-                    {product.sku || "—"}
+                    {isReadOnly ? (product.sku || "—") : (
+                      <input
+                        className="bg-neutral-100 border border-neutral-200 rounded px-1.5 hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm text-neutral-500 w-full"
+                        value={editingField?.id === product.id && editingField.field === 'sku' ? editingField.value : String(product.sku ?? '')}
+                        onFocus={() => setEditingField({ id: product.id, field: 'sku', value: String(product.sku ?? '') })}
+                        onChange={(e) => setEditingField({ id: product.id, field: 'sku', value: e.target.value })}
+                        onBlur={() => handleFieldSave(product)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingField(null); }}
+                      />
+                    )}
                   </TableCell>
                   <TableCell className="text-right hidden md:table-cell">
-                    {product.costPrice != null ? `$${formatPrice(product.costPrice)}` : "—"}
+                    {isReadOnly ? (product.costPrice != null ? `$${formatPrice(product.costPrice)}` : "—") : (
+                      <input
+                        type="number"
+                        min={0}
+                        className="bg-neutral-100 border border-neutral-200 rounded px-1.5 hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm text-right w-full"
+                        value={editingField?.id === product.id && editingField.field === 'costPrice' ? editingField.value : String(product.costPrice ?? '')}
+                        onFocus={() => setEditingField({ id: product.id, field: 'costPrice', value: String(product.costPrice ?? '') })}
+                        onChange={(e) => setEditingField({ id: product.id, field: 'costPrice', value: e.target.value })}
+                        onBlur={() => handleFieldSave(product)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingField(null); }}
+                      />
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {product.price > 0 ? `$${formatPrice(product.price)}` : "—"}
+                    {isReadOnly ? (product.price > 0 ? `$${formatPrice(product.price)}` : "—") : (
+                      <input
+                        type="number"
+                        min={0}
+                        className="bg-neutral-100 border border-neutral-200 rounded px-1.5 hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm text-right w-full"
+                        value={editingField?.id === product.id && editingField.field === 'price' ? editingField.value : String(product.price ?? '')}
+                        onFocus={() => setEditingField({ id: product.id, field: 'price', value: String(product.price ?? '') })}
+                        onChange={(e) => setEditingField({ id: product.id, field: 'price', value: e.target.value })}
+                        onBlur={() => handleFieldSave(product)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingField(null); }}
+                      />
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {product.stock}
+                    {isReadOnly ? product.stock : (
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-16 text-right bg-neutral-100 border border-neutral-200 rounded px-1.5 hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm"
+                        value={editingStock?.id === product.id ? editingStock.value : product.stock}
+                        onFocus={() => setEditingStock({ id: product.id, value: String(product.stock) })}
+                        onChange={(e) => setEditingStock({ id: product.id, value: e.target.value })}
+                        onBlur={() => handleStockSave(product)}
+                        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") setEditingStock(null); }}
+                      />
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">

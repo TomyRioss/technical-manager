@@ -20,7 +20,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { LuPlus, LuTrash2, LuSearch, LuEye, LuLoader, LuArchiveX } from "react-icons/lu";
+import { LuPlus, LuTrash2, LuSearch, LuEye, LuLoader, LuArchiveX, LuPrinter } from "react-icons/lu";
+import { ReceiptPrintModal } from "@/components/receipts/receipt-print-modal";
 import {
   Tooltip,
   TooltipContent,
@@ -32,11 +33,12 @@ import { useStorePlan } from "@/hooks/use-store-plan";
 import type { Receipt } from "@/types/receipt";
 
 export default function RecibosPage() {
-  const { receipts, archivedReceipts, deleteReceipt, archiveReceipt, loading } = useDashboard();
+  const { receipts, archivedReceipts, deleteReceipt, archiveReceipt, loading, storeId, storeName, branchName } = useDashboard();
   const { isReadOnly } = useStorePlan();
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [printingReceipt, setPrintingReceipt] = useState<Receipt | null>(null);
 
   function filterReceipts(list: Receipt[]) {
     if (!search) return list;
@@ -104,6 +106,9 @@ export default function RecibosPage() {
               <TableRow key={receipt.id}>
                 <TableCell className="font-medium">
                   {receipt.receiptNumber}
+                  <div className="md:hidden text-xs text-neutral-400 mt-0.5">
+                    {receipt.paymentMethod} · {receipt.createdAt.toLocaleDateString("es-AR")}
+                  </div>
                 </TableCell>
                 <TableCell className="text-neutral-500 hidden md:table-cell">
                   {receipt.createdAt.toLocaleDateString("es-AR")}
@@ -152,9 +157,22 @@ export default function RecibosPage() {
                         </TooltipTrigger>
                         <TooltipContent>Detalles</TooltipContent>
                       </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setPrintingReceipt(receipt)}
+                          >
+                            <LuPrinter className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Imprimir</TooltipContent>
+                      </Tooltip>
                       {showArchiveBtn && (
                         archivingId === receipt.id ? (
-                          <div className="flex items-center gap-1">
+                          <div className="flex flex-wrap items-center gap-1">
                             <Button
                               variant="default"
                               size="xs"
@@ -188,7 +206,7 @@ export default function RecibosPage() {
                         )
                       )}
                       {deletingId === receipt.id ? (
-                        <div className="flex items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-1">
                           <Button
                             variant="destructive"
                             size="xs"
@@ -253,6 +271,17 @@ export default function RecibosPage() {
           </Link>
         </div>
       </div>
+
+      {printingReceipt && (
+        <ReceiptPrintModal
+          open
+          onClose={() => setPrintingReceipt(null)}
+          receipt={printingReceipt}
+          storeName={storeName}
+          branchName={branchName}
+          storeId={storeId}
+        />
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="recientes">

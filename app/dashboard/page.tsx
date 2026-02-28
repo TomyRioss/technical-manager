@@ -14,6 +14,7 @@ import {
   LuUsers,
   LuSearch,
   LuStore,
+  LuShoppingCart,
   LuCopy,
   LuQrCode,
   LuExternalLink,
@@ -200,7 +201,7 @@ export default function DashboardPage() {
 
       {/* Accesos públicos */}
       {storeSlug && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-5">
             <div className="flex items-center gap-4">
               <Link href={`/${storeSlug}`} target="_blank" className="flex flex-1 cursor-pointer items-center gap-4 rounded-md hover:bg-blue-100 -m-2 p-2">
@@ -242,6 +243,53 @@ export default function DashboardPage() {
                   URL.revokeObjectURL(blobUrl);
                 }}
                 className="flex cursor-pointer items-center gap-1 rounded-md bg-blue-100 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-200"
+              >
+                <LuQrCode className="h-3.5 w-3.5" />
+                QR
+              </button>
+            </div>
+          </div>
+          <div className="rounded-lg border border-purple-200 bg-purple-50 p-5">
+            <div className="flex items-center gap-4">
+              <Link href="/dashboard/pos" className="flex flex-1 cursor-pointer items-center gap-4 rounded-md hover:bg-purple-100 -m-2 p-2">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-purple-100">
+                  <LuShoppingCart className="h-5 w-5 text-purple-700" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-purple-900">Acceder a punto de venta</p>
+                  <p className="text-sm text-purple-600">Panel de ventas presenciales</p>
+                </div>
+                <LuExternalLink className="h-4 w-4 text-purple-700" />
+              </Link>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                readOnly
+                value={`${appUrl}/dashboard/pos`}
+                className="flex-1 rounded-md border border-purple-200 bg-white px-3 py-1.5 text-xs text-neutral-700"
+              />
+              <button
+                onClick={() => navigator.clipboard.writeText(`${appUrl}/dashboard/pos`)}
+                className="flex cursor-pointer items-center gap-1 rounded-md bg-purple-100 px-3 py-1.5 text-xs font-medium text-purple-700 hover:bg-purple-200"
+              >
+                <LuCopy className="h-3.5 w-3.5" />
+                Copiar
+              </button>
+              <button
+                onClick={async () => {
+                  const url = `${appUrl}/dashboard/pos`;
+                  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
+                  const response = await fetch(qrUrl);
+                  const blob = await response.blob();
+                  const blobUrl = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = blobUrl;
+                  a.download = `qr-pos.png`;
+                  a.click();
+                  URL.revokeObjectURL(blobUrl);
+                }}
+                className="flex cursor-pointer items-center gap-1 rounded-md bg-purple-100 px-3 py-1.5 text-xs font-medium text-purple-700 hover:bg-purple-200"
               >
                 <LuQrCode className="h-3.5 w-3.5" />
                 QR

@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // Generate receipt number
-    const count = await prisma.receipt.count({ where: { branchId } });
+    const count = await prisma.receipt.count({ where: { storeId } });
     const receiptNumber = `REC-${String(count + 1).padStart(3, "0")}`;
 
     const receipt = await prisma.$transaction(async (tx) => {

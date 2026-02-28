@@ -104,6 +104,23 @@ export async function POST(req: NextRequest) {
         data: { userId: user.id, branchId: branch.id },
       });
 
+      // Crear categorías por defecto
+      const DEFAULT_CATEGORIES = [
+        "FUNDAS",
+        "VIDRIOS TEMPLADOS",
+        "CARGADORES",
+        "AURICULARES",
+        "ESTEREOS",
+        "VARIOS",
+      ];
+
+      await (prisma as any).category.createMany({
+        data: DEFAULT_CATEGORIES.map((name) => ({
+          name,
+          storeId: store.id,
+        })),
+      });
+
       return NextResponse.json({
         user: {
           id: user.id,

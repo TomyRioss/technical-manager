@@ -13,12 +13,15 @@ import type { WorkOrder } from "@/types/work-order";
 import { LuPlus, LuSearch, LuLayoutGrid, LuList } from "react-icons/lu";
 import Link from "next/link";
 import { useStorePlan } from "@/hooks/use-store-plan";
+import { ServicesPanel } from "@/components/services/services-panel";
 
 type ViewTab = "todas" | "mias" | "activas";
+type PageTab = "ordenes" | "servicios";
 
 export default function OrdenesPage() {
   const { storeId, userId, branchId } = useDashboard();
   const { isReadOnly } = useStorePlan();
+  const [pageTab, setPageTab] = useState<PageTab>("ordenes");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<ViewTab>("todas");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
@@ -61,7 +64,28 @@ export default function OrdenesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Tabs */}
+      {/* Page-level tabs */}
+      <div className="flex items-center gap-2 sm:gap-4 border-b border-border">
+        {(["ordenes", "servicios"] as PageTab[]).map((pt) => (
+          <button
+            key={pt}
+            onClick={() => setPageTab(pt)}
+            className={cn(
+              "pb-2 text-sm font-medium border-b-2 transition-colors capitalize",
+              pageTab === pt
+                ? "border-neutral-900 text-neutral-900"
+                : "border-transparent text-neutral-500 hover:text-neutral-700"
+            )}
+          >
+            {pt === "ordenes" ? "Órdenes" : "Servicios"}
+          </button>
+        ))}
+      </div>
+
+      {pageTab === "servicios" && <ServicesPanel />}
+
+      {pageTab === "ordenes" && <>
+      {/* View sub-tabs */}
       <div className="flex items-center gap-2 sm:gap-4 border-b border-border">
         {tabs.map((t) => (
           <button
@@ -136,6 +160,7 @@ export default function OrdenesPage() {
       ) : (
         <OrderTable orders={filtered} />
       )}
+      </>}
     </div>
   );
 }
