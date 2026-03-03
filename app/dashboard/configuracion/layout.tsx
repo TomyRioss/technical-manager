@@ -12,7 +12,7 @@ const configTabs = [
   { label: "Categorias", href: "/dashboard/configuracion/categorias", icon: LuTags },
   { label: "Dispositivos", href: "/dashboard/configuracion/dispositivos", icon: LuSmartphone },
   { label: "Comisiones", href: "/dashboard/configuracion/comisiones", icon: LuPercent },
-  { label: "Exportar", href: "/dashboard/exportar", icon: LuDownload },
+  { label: "Exportar", href: "/dashboard/configuracion/exportar", icon: LuDownload },
 ];
 
 export default function ConfiguracionLayout({ children }: { children: React.ReactNode }) {

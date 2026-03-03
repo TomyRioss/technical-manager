@@ -40,6 +40,26 @@ export async function GET(req: NextRequest) {
         Garantía: o.warrantyDays ?? "",
         Creada: o.createdAt.toISOString().split("T")[0],
       }));
+    } else if (type === "inventory") {
+      sheetName = "Inventario";
+      const itemWhere: Record<string, unknown> = { storeId, isDeleted: false };
+      if (branchId) itemWhere.branchId = branchId;
+      const items = await prisma.item.findMany({
+        where: itemWhere,
+        include: { category: { select: { name: true } } },
+        orderBy: { name: "asc" },
+      });
+      data = items.map((i) => ({
+        SKU: i.sku,
+        Nombre: i.name,
+        Descripción: i.description ?? "",
+        Stock: i.stock,
+        "Precio Costo": i.costPrice ?? "",
+        "Precio Venta": i.salePrice,
+        Categoría: i.category?.name ?? "",
+        Activo: i.isActive ? "Sí" : "No",
+        Creado: i.createdAt.toISOString().split("T")[0],
+      }));
     } else if (type === "clients") {
       sheetName = "Clientes";
       const clientWhere: Record<string, unknown> = { storeId, isActive: true };

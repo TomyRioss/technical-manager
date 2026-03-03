@@ -20,7 +20,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { LuPlus, LuTrash2, LuSearch, LuEye, LuLoader, LuArchiveX, LuPrinter } from "react-icons/lu";
+import { LuPlus, LuTrash2, LuSearch, LuEye, LuLoader, LuArchiveX, LuPrinter, LuChevronLeft } from "react-icons/lu";
+import { ReceiptImportDialog } from "@/components/receipts/receipt-import-dialog";
 import { ReceiptPrintModal } from "@/components/receipts/receipt-print-modal";
 import {
   Tooltip,
@@ -39,6 +40,8 @@ export default function RecibosPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [printingReceipt, setPrintingReceipt] = useState<Receipt | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   function filterReceipts(list: Receipt[]) {
     if (!search) return list;
@@ -262,7 +265,19 @@ export default function RecibosPage() {
             className="pl-9"
           />
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          {!isReadOnly && (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => setShowImport((v) => !v)}>
+                <LuChevronLeft className="h-4 w-4" />
+              </Button>
+              {showImport && (
+                <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                  Importar CSV
+                </Button>
+              )}
+            </>
+          )}
           <Link href="/dashboard/recibos/create" className={isReadOnly ? "pointer-events-none" : ""}>
             <Button size="sm" disabled={isReadOnly}>
               <LuPlus className="mr-1.5 h-4 w-4" />
@@ -271,6 +286,7 @@ export default function RecibosPage() {
           </Link>
         </div>
       </div>
+      <ReceiptImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
       {printingReceipt && (
         <ReceiptPrintModal

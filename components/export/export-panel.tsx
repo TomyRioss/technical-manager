@@ -11,12 +11,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDashboard } from "@/contexts/dashboard-context";
-import { LuDownload, LuLoaderCircle, LuWrench, LuUsers, LuReceipt } from "react-icons/lu";
+import { LuDownload, LuLoaderCircle, LuWrench, LuUsers, LuReceipt, LuPackage } from "react-icons/lu";
 
 const exportTypes = [
   { key: "orders", label: "Órdenes de Trabajo", icon: LuWrench },
   { key: "clients", label: "Clientes", icon: LuUsers },
   { key: "receipts", label: "Recibos", icon: LuReceipt },
+  { key: "inventory", label: "Inventario", icon: LuPackage },
 ];
 
 const exportFormats = [
@@ -33,14 +34,21 @@ export function ExportPanel() {
     orders: "xlsx",
     clients: "xlsx",
     receipts: "xlsx",
+    inventory: "xlsx",
   });
 
   async function handleExport(type: string) {
+    if (!storeId) {
+      setError("No se pudo determinar la tienda. Recargá la página.");
+      return;
+    }
     const format = formats[type] || "xlsx";
     setDownloading(type);
     setError(null);
     try {
-      const res = await fetch(`/api/export?storeId=${storeId}&branchId=${branchId}&type=${type}&format=${format}`);
+      const params = new URLSearchParams({ storeId, type, format });
+      if (branchId) params.set("branchId", branchId);
+      const res = await fetch(`/api/export?${params.toString()}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Error al exportar los datos");

@@ -10,10 +10,11 @@ import { OrderFilters } from "@/components/orders/order-filters";
 import { useDashboard } from "@/contexts/dashboard-context";
 import { cn } from "@/lib/utils";
 import type { WorkOrder } from "@/types/work-order";
-import { LuPlus, LuSearch, LuLayoutGrid, LuList } from "react-icons/lu";
+import { LuPlus, LuSearch, LuLayoutGrid, LuList, LuChevronLeft } from "react-icons/lu";
 import Link from "next/link";
 import { useStorePlan } from "@/hooks/use-store-plan";
 import { ServicesPanel } from "@/components/services/services-panel";
+import { OrderImportDialog } from "@/components/orders/order-import-dialog";
 
 type ViewTab = "todas" | "mias" | "activas";
 type PageTab = "ordenes" | "servicios";
@@ -27,6 +28,8 @@ export default function OrdenesPage() {
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [technicianFilter, setTechnicianFilter] = useState("ALL");
+  const [showImport, setShowImport] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: orders = [], isLoading: loading } = useSWR<WorkOrder[]>(`/api/work-orders?storeId=${storeId}&branchId=${branchId}`);
   const { data: technicians = [] } = useSWR<{ id: string; name: string }[]>(`/api/users?storeId=${storeId}`);
@@ -135,7 +138,19 @@ export default function OrdenesPage() {
           onTechnicianChange={setTechnicianFilter}
           technicians={technicians}
         />
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          {!isReadOnly && (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => setShowImport((v) => !v)}>
+                <LuChevronLeft className="h-4 w-4" />
+              </Button>
+              {showImport && (
+                <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                  Importar CSV
+                </Button>
+              )}
+            </>
+          )}
           <Link href="/dashboard/ordenes/create" className={isReadOnly ? "pointer-events-none" : ""}>
             <Button disabled={isReadOnly}>
               <LuPlus className="h-4 w-4 mr-1" />
@@ -143,6 +158,7 @@ export default function OrdenesPage() {
             </Button>
           </Link>
         </div>
+        <OrderImportDialog open={importOpen} onOpenChange={setImportOpen} />
       </div>
 
       {loading ? (

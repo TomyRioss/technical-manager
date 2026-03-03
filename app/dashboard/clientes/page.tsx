@@ -7,14 +7,17 @@ import { Input } from "@/components/ui/input";
 import { ClientTable } from "@/components/clients/client-table";
 import { useDashboard } from "@/contexts/dashboard-context";
 import type { Client } from "@/types/client";
-import { LuPlus, LuSearch } from "react-icons/lu";
+import { LuPlus, LuSearch, LuChevronLeft } from "react-icons/lu";
 import Link from "next/link";
 import { useStorePlan } from "@/hooks/use-store-plan";
+import { ClientImportDialog } from "@/components/clients/client-import-dialog";
 
 export default function ClientesPage() {
   const { storeId, branchId } = useDashboard();
   const { isReadOnly } = useStorePlan();
   const [search, setSearch] = useState("");
+  const [showImport, setShowImport] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const clientsKey = `/api/clients?storeId=${storeId}&branchId=${branchId}`;
   const { data: clients = [], isLoading: loading, mutate } = useSWR<Client[]>(clientsKey);
@@ -41,7 +44,19 @@ export default function ClientesPage() {
             className="pl-9"
           />
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          {!isReadOnly && (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => setShowImport((v) => !v)}>
+                <LuChevronLeft className="h-4 w-4" />
+              </Button>
+              {showImport && (
+                <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                  Importar CSV
+                </Button>
+              )}
+            </>
+          )}
           <Link href="/dashboard/clientes/create" className={isReadOnly ? "pointer-events-none" : ""}>
             <Button disabled={isReadOnly}>
               <LuPlus className="h-4 w-4 mr-1" />
@@ -50,6 +65,7 @@ export default function ClientesPage() {
           </Link>
         </div>
       </div>
+      <ClientImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
       {loading ? (
         <p className="text-sm text-neutral-500">Cargando clientes...</p>

@@ -1,14 +1,12 @@
 "use client";
 
-import { ExportPanel } from "@/components/export/export-panel";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-export default function ExportarPage() {
-  return (
-    <div className="space-y-6">
-      <p className="text-sm text-neutral-600">
-        Descargá tus datos en Excel, CSV o JSON.
-      </p>
-      <ExportPanel />
-    </div>
-  );
+export default function ExportarRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/dashboard/configuracion/exportar");
+  }, [router]);
+  return null;
 }
