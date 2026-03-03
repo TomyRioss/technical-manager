@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
             },
           },
           update: {
+            branchId,
             name: item.name,
             stock: item.stock ?? 0,
             costPrice: item.costPrice,
