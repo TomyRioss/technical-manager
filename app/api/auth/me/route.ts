@@ -25,9 +25,15 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ user });
-  } catch {
+  } catch (error: unknown) {
+    console.error("GET /api/auth/me error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
     return NextResponse.json(
-      { error: "Error del servidor" },
+      { error: "Error al obtener datos del usuario" },
       { status: 500 }
     );
   }

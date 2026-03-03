@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LuPaintbrush, LuSmartphone, LuPercent, LuTags, LuUsers, LuDownload } from "react-icons/lu";
+import { LuPaintbrush, LuSmartphone, LuPercent, LuTags, LuUsers, LuDownload, LuBuilding2 } from "react-icons/lu";
 
 const configTabs = [
   { label: "General", href: "/dashboard/configuracion", icon: LuPaintbrush },
   { label: "Equipo", href: "/dashboard/configuracion/equipo", icon: LuUsers },
+  { label: "Sucursales", href: "/dashboard/configuracion/sucursales", icon: LuBuilding2 },
   { label: "Categorias", href: "/dashboard/configuracion/categorias", icon: LuTags },
   { label: "Dispositivos", href: "/dashboard/configuracion/dispositivos", icon: LuSmartphone },
   { label: "Comisiones", href: "/dashboard/configuracion/comisiones", icon: LuPercent },
@@ -19,7 +20,6 @@ export default function ConfiguracionLayout({ children }: { children: React.Reac
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Configuraci&oacute;n</h1>
       <div className="flex flex-col sm:flex-row gap-6">
         <nav className="flex sm:flex-col gap-1 sm:w-48 shrink-0 overflow-x-auto">
           {configTabs.map((tab) => {

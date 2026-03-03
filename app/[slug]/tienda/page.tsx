@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { TiendaContent } from "@/components/tienda/tienda-content";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 interface Props {
@@ -35,8 +36,32 @@ export default async function TiendaPage({ params }: Props) {
     );
   }
 
-  const items = await prisma.item.findMany({
+  // Check how many active branches exist
+  const branches = await prisma.branch.findMany({
     where: { storeId: settings.storeId, isActive: true },
+    orderBy: [{ isDefault: "desc" }, { name: "asc" }],
+  });
+
+  // If multiple branches, redirect to default branch page
+  if (branches.length > 1) {
+    const defaultBranch = branches.find((b) => b.isDefault) || branches[0];
+    if (defaultBranch?.slug) {
+      redirect(`/${slug}/tienda/${defaultBranch.slug}`);
+    }
+  }
+
+  // Single branch or no branches - show items from default branch
+  const defaultBranch = branches[0];
+  const itemWhere: Record<string, unknown> = {
+    storeId: settings.storeId,
+    isActive: true,
+  };
+  if (defaultBranch) {
+    itemWhere.branchId = defaultBranch.id;
+  }
+
+  const items = await prisma.item.findMany({
+    where: itemWhere,
     orderBy: { name: "asc" },
     include: { category: { select: { name: true } } } as any,
   });
@@ -76,6 +101,8 @@ export default async function TiendaPage({ params }: Props) {
       tiktokUrl={s.tiktokUrl ?? null}
       twitterUrl={s.twitterUrl ?? null}
       items={mappedItems}
+      slug={slug}
+      branchId={defaultBranch?.id ?? ""}
     />
   );
 }

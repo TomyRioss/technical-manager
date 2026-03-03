@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import type { PaymentMethod, ReceiptStatus } from "@/lib/generated/prisma";
+import { checkReadOnly } from "@/lib/plan-guard";
 
 const paymentMethodMap: Record<string, PaymentMethod> = {
   "Efectivo": "CASH",
@@ -24,116 +25,144 @@ const statusReverseMap: Record<ReceiptStatus, string> = {
 
 export async function GET(req: NextRequest) {
   const storeId = req.nextUrl.searchParams.get("storeId");
+  const branchId = req.nextUrl.searchParams.get("branchId");
   if (!storeId) {
     return NextResponse.json({ error: "storeId requerido" }, { status: 400 });
   }
 
   const archived = req.nextUrl.searchParams.get("archived") === "true";
 
-  const receipts = await prisma.receipt.findMany({
-    where: { storeId, isActive: !archived },
-    include: { items: { include: { item: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+  try {
+    const where: Record<string, unknown> = { storeId, isActive: !archived };
+    if (branchId) where.branchId = branchId;
 
-  const mapped = receipts.map((r) => ({
-    id: r.id,
-    receiptNumber: r.receiptNumber,
-    status: statusReverseMap[r.status],
-    paymentMethod: paymentMethodReverseMap[r.paymentMethod],
-    subtotal: r.subtotal,
-    commissionRate: r.commissionRate,
-    commissionAmount: r.commissionAmount,
-    total: r.total,
-    notes: r.notes || "",
-    items: r.items.map((ri) => ({
-      id: ri.id,
-      productId: ri.itemId,
-      name: ri.item.name,
-      quantity: ri.quantity,
-      unitPrice: ri.unitPrice,
-      lineTotal: ri.lineTotal,
-    })),
-    createdAt: r.createdAt,
-  }));
+    const receipts = await prisma.receipt.findMany({
+      where,
+      include: { items: { include: { item: true } } },
+      orderBy: { createdAt: "desc" },
+    });
 
-  return NextResponse.json(mapped);
+    const mapped = receipts.map((r) => ({
+      id: r.id,
+      receiptNumber: r.receiptNumber,
+      status: statusReverseMap[r.status],
+      paymentMethod: paymentMethodReverseMap[r.paymentMethod],
+      subtotal: r.subtotal,
+      commissionRate: r.commissionRate,
+      commissionAmount: r.commissionAmount,
+      total: r.total,
+      notes: r.notes || "",
+      items: r.items.map((ri) => ({
+        id: ri.id,
+        productId: ri.itemId,
+        name: ri.item.name,
+        quantity: ri.quantity,
+        unitPrice: ri.unitPrice,
+        lineTotal: ri.lineTotal,
+      })),
+      createdAt: r.createdAt,
+    }));
+
+    return NextResponse.json(mapped);
+  } catch (error: unknown) {
+    console.error("GET /api/receipts error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al obtener los recibos" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { storeId, userId, paymentMethod, commissionRate, commissionAmount, subtotal, total, notes, items } = body;
+  const { storeId, branchId, userId, paymentMethod, commissionRate, commissionAmount, subtotal, total, notes, items } = body;
 
-  if (!storeId || !userId || !paymentMethod || !items?.length) {
+  if (!storeId || !branchId || !userId || !paymentMethod || !items?.length) {
     return NextResponse.json({ error: "Campos requeridos faltantes" }, { status: 400 });
   }
+
+  const guard = await checkReadOnly(storeId);
+  if (guard) return guard;
 
   const dbPaymentMethod = paymentMethodMap[paymentMethod];
   if (!dbPaymentMethod) {
     return NextResponse.json({ error: "Método de pago inválido" }, { status: 400 });
   }
 
-  // Generate receipt number
-  const count = await prisma.receipt.count({ where: { storeId } });
-  const receiptNumber = `REC-${String(count + 1).padStart(3, "0")}`;
+  try {
+    // Generate receipt number
+    const count = await prisma.receipt.count({ where: { storeId } });
+    const receiptNumber = `REC-${String(count + 1).padStart(3, "0")}`;
 
-  const receipt = await prisma.$transaction(async (tx) => {
-    // Create receipt with items
-    const created = await tx.receipt.create({
-      data: {
-        receiptNumber,
-        status: "PENDING",
-        paymentMethod: dbPaymentMethod,
-        subtotal,
-        commissionRate: commissionRate || 0,
-        commissionAmount: commissionAmount || 0,
-        total,
-        notes: notes || null,
-        storeId,
-        userId,
-        items: {
-          create: items.map((i: { productId: string; quantity: number; unitPrice: number; lineTotal: number }) => ({
-            itemId: i.productId,
-            quantity: i.quantity,
-            unitPrice: i.unitPrice,
-            lineTotal: i.lineTotal,
-          })),
+    const receipt = await prisma.$transaction(async (tx) => {
+      // Create receipt with items
+      const created = await tx.receipt.create({
+        data: {
+          receiptNumber,
+          status: "COMPLETED",
+          paymentMethod: dbPaymentMethod,
+          subtotal,
+          commissionRate: commissionRate || 0,
+          commissionAmount: commissionAmount || 0,
+          total,
+          notes: notes || null,
+          storeId,
+          branchId,
+          userId,
+          items: {
+            create: items.map((i: { productId: string; quantity: number; unitPrice: number; lineTotal: number }) => ({
+              itemId: i.productId,
+              quantity: i.quantity,
+              unitPrice: i.unitPrice,
+              lineTotal: i.lineTotal,
+            })),
+          },
         },
-      },
-      include: { items: { include: { item: true } } },
+        include: { items: { include: { item: true } } },
+      });
+
+      // Discount stock
+      for (const i of items) {
+        await tx.item.update({
+          where: { id: i.productId },
+          data: { stock: { decrement: i.quantity } },
+        });
+      }
+
+      return created;
     });
 
-    // Discount stock
-    for (const i of items) {
-      await tx.item.update({
-        where: { id: i.productId },
-        data: { stock: { decrement: i.quantity } },
-      });
+    const mapped = {
+      id: receipt.id,
+      receiptNumber: receipt.receiptNumber,
+      status: statusReverseMap[receipt.status],
+      paymentMethod: paymentMethodReverseMap[receipt.paymentMethod],
+      subtotal: receipt.subtotal,
+      commissionRate: receipt.commissionRate,
+      commissionAmount: receipt.commissionAmount,
+      total: receipt.total,
+      notes: receipt.notes || "",
+      items: receipt.items.map((ri) => ({
+        id: ri.id,
+        productId: ri.itemId,
+        name: ri.item.name,
+        quantity: ri.quantity,
+        unitPrice: ri.unitPrice,
+        lineTotal: ri.lineTotal,
+      })),
+      createdAt: receipt.createdAt,
+    };
+
+    return NextResponse.json(mapped, { status: 201 });
+  } catch (error: unknown) {
+    console.error("POST /api/receipts error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
     }
-
-    return created;
-  });
-
-  const mapped = {
-    id: receipt.id,
-    receiptNumber: receipt.receiptNumber,
-    status: statusReverseMap[receipt.status],
-    paymentMethod: paymentMethodReverseMap[receipt.paymentMethod],
-    subtotal: receipt.subtotal,
-    commissionRate: receipt.commissionRate,
-    commissionAmount: receipt.commissionAmount,
-    total: receipt.total,
-    notes: receipt.notes || "",
-    items: receipt.items.map((ri) => ({
-      id: ri.id,
-      productId: ri.itemId,
-      name: ri.item.name,
-      quantity: ri.quantity,
-      unitPrice: ri.unitPrice,
-      lineTotal: ri.lineTotal,
-    })),
-    createdAt: receipt.createdAt,
-  };
-
-  return NextResponse.json(mapped, { status: 201 });
+    return NextResponse.json({ error: "Error al crear el recibo" }, { status: 500 });
+  }
 }

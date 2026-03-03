@@ -22,6 +22,15 @@ export async function GET(
       return NextResponse.json({ error: "Store not found" }, { status: 404 });
     }
 
+    // Lazy downgrade: DEMO expired → FREE
+    if ((store.plan as string) === "DEMO" && store.planExpiresAt && new Date(store.planExpiresAt) < new Date()) {
+      await prisma.store.update({
+        where: { id },
+        data: { plan: "FREE", planExpiresAt: null },
+      });
+      return NextResponse.json({ ...store, plan: "FREE", planExpiresAt: null });
+    }
+
     return NextResponse.json(store);
   } catch (error) {
     console.error("Error fetching store:", error);

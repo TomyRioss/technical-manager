@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { DashboardProvider } from "@/contexts/dashboard-context";
+import { SWRProvider } from "@/providers/swr-provider";
+import { clearSWRCache } from "@/lib/swr-cache";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { BranchSelector } from "@/components/branch-selector";
 import {
   LuLogOut,
   LuHouse,
@@ -15,9 +18,12 @@ import {
   LuWrench,
   LuUsers,
   LuSettings,
+  LuCircleHelp,
+  LuShoppingCart,
 } from "react-icons/lu";
 import type { UserRole } from "@/lib/auth-check";
 import type { StorePlan } from "@/lib/store-plans";
+import { TrialBanner } from "@/components/ui/trial-banner";
 
 interface NavTab {
   label: string;
@@ -28,13 +34,20 @@ interface NavTab {
 }
 
 const allTabs: NavTab[] = [
-  { label: "Inicio", href: "/dashboard", icon: LuHouse, roles: ["OWNER", "TECHNICIAN"] },
-  { label: "Inventario", href: "/dashboard/inventario", icon: LuPackage, roles: ["OWNER"] },
-  { label: "Órdenes", href: "/dashboard/ordenes", icon: LuWrench, roles: ["OWNER", "TECHNICIAN"] },
-  { label: "Clientes", href: "/dashboard/clientes", icon: LuUsers, roles: ["OWNER", "TECHNICIAN"], size: "small" },
-  { label: "Recibos", href: "/dashboard/recibos", icon: LuReceipt, roles: ["OWNER"], size: "small" },
+  { label: "Inicio", href: "/dashboard", icon: LuHouse, roles: ["OWNER", "MANAGER", "TECHNICIAN"] },
+  { label: "Inventario", href: "/dashboard/inventario", icon: LuPackage, roles: ["OWNER", "MANAGER"] },
+  { label: "Órdenes", href: "/dashboard/ordenes", icon: LuWrench, roles: ["OWNER", "MANAGER", "TECHNICIAN"] },
+  { label: "Clientes", href: "/dashboard/clientes", icon: LuUsers, roles: ["OWNER", "MANAGER", "TECHNICIAN"], size: "small" },
+  { label: "Recibos", href: "/dashboard/recibos", icon: LuReceipt, roles: ["OWNER", "MANAGER"], size: "small" },
   { label: "Config", href: "/dashboard/configuracion", icon: LuSettings, roles: ["OWNER"], size: "small" },
 ];
+
+interface BranchData {
+  id: string;
+  name: string;
+  slug: string;
+  isDefault: boolean;
+}
 
 export default function DashboardLayout({
   children,
@@ -52,6 +65,15 @@ export default function DashboardLayout({
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [storeSlug, setStoreSlug] = useState<string>("");
   const [storePlan, setStorePlan] = useState<StorePlan>("FREE");
+  const [planExpiresAt, setPlanExpiresAt] = useState<string | null>(null);
+  const [planLoaded, setPlanLoaded] = useState(false);
+
+  // Branch state
+  const [branches, setBranches] = useState<BranchData[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+  const [selectedBranchName, setSelectedBranchName] = useState<string>("");
+  const [selectedBranchSlug, setSelectedBranchSlug] = useState<string>("");
+  const [branchesLoaded, setBranchesLoaded] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem("user");
@@ -62,7 +84,9 @@ export default function DashboardLayout({
         if (user.storeId) setStoreId(user.storeId);
         if (user.id) setUserId(user.id);
         if (user.role) setUserRole(user.role);
-      } catch {}
+      } catch (error: unknown) {
+        console.error("Error al parsear datos del usuario:", error);
+      }
     }
   }, []);
 
@@ -97,11 +121,85 @@ export default function DashboardLayout({
       .then((res) => res.json())
       .then((data) => {
         if (data?.plan) setStorePlan(data.plan);
+        setPlanExpiresAt(data?.planExpiresAt ?? null);
+        setPlanLoaded(true);
       })
-      .catch(() => {});
+      .catch(() => { setPlanLoaded(true); });
   }, [storeId]);
 
-  if (!storeId || !userId) {
+  // Fetch branches (auto-crea sucursal para tiendas legacy sin branches)
+  const refetchBranches = useCallback(() => {
+    if (!userId || !storeId) return;
+    fetch(`/api/branches/my-branches?userId=${userId}&storeId=${storeId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Error al obtener sucursales (${res.status})`);
+        return res.json();
+      })
+      .then(async (data: BranchData[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setBranches(data);
+
+          // Restore from localStorage or pick default
+          const saved = localStorage.getItem(`selectedBranchId_${storeId}`);
+          const savedBranch = saved ? data.find((b) => b.id === saved) : null;
+          const defaultBranch = savedBranch || data.find((b) => b.isDefault) || data[0];
+
+          setSelectedBranchId(defaultBranch.id);
+          setSelectedBranchName(defaultBranch.name);
+          setSelectedBranchSlug(defaultBranch.slug);
+          setBranchesLoaded(true);
+          return;
+        }
+
+        // Tienda legacy sin branches: si es OWNER, auto-crear sucursal
+        if (userRole === "OWNER") {
+          try {
+            const res = await fetch("/api/branches/ensure-default", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ storeId, userId }),
+            });
+            const result = await res.json();
+            if (result.created) {
+              // Re-fetch para cargar la branch recién creada
+              const branchRes = await fetch(`/api/branches/my-branches?userId=${userId}&storeId=${storeId}`);
+              if (branchRes.ok) {
+                const newData: BranchData[] = await branchRes.json();
+                if (Array.isArray(newData) && newData.length > 0) {
+                  setBranches(newData);
+                  const def = newData.find((b) => b.isDefault) || newData[0];
+                  setSelectedBranchId(def.id);
+                  setSelectedBranchName(def.name);
+                  setSelectedBranchSlug(def.slug);
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Error al crear sucursal por defecto:", err);
+          }
+        }
+        setBranchesLoaded(true);
+      })
+      .catch(() => { setBranchesLoaded(true); });
+  }, [userId, storeId, userRole]);
+
+  useEffect(() => {
+    refetchBranches();
+  }, [refetchBranches]);
+
+  function handleBranchChange(branchId: string) {
+    setSelectedBranchId(branchId);
+    const branch = branches.find((b) => b.id === branchId);
+    if (branch) {
+      setSelectedBranchName(branch.name);
+      setSelectedBranchSlug(branch.slug);
+      if (storeId) {
+        localStorage.setItem(`selectedBranchId_${storeId}`, branchId);
+      }
+    }
+  }
+
+  if (!storeId || !userId || !branchesLoaded) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-sm text-neutral-500">Cargando...</p>
@@ -113,10 +211,10 @@ export default function DashboardLayout({
     <div className="flex min-h-screen flex-col">
       {/* Navbar */}
       <header className="border-b border-border bg-white">
-        <div className="flex h-16 items-center justify-between px-6">
+        <div className="flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6">
           <Link
             href="/dashboard"
-            className="flex items-center gap-3 text-xl font-bold tracking-tight text-neutral-900 hover:text-neutral-700 transition-colors"
+            className="flex items-center gap-2 sm:gap-3 text-base sm:text-xl font-bold tracking-tight text-neutral-900 hover:text-neutral-700 transition-colors"
           >
             {logoUrl && (
               <Image
@@ -124,45 +222,58 @@ export default function DashboardLayout({
                 alt="Logo"
                 width={36}
                 height={36}
-                className="rounded-md object-contain"
+                className="rounded-md object-contain w-7 h-7 sm:w-9 sm:h-9"
               />
             )}
             {storeName}
+            {storePlan !== "FREE" && (
+              <span className="ml-1 hidden sm:inline-flex rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                {storePlan}
+              </span>
+            )}
           </Link>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button className="cursor-pointer rounded-full focus:outline-none focus:ring-2 focus:ring-neutral-300">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-800 text-sm font-semibold text-white">
-                  {(userName || storeName).charAt(0).toUpperCase()}
-                </div>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-56 p-1">
-              {(userName || userEmail) && (
-                <div className="px-3 py-2 border-b border-neutral-200 mb-1">
-                  {userName && (
-                    <p className="text-sm font-medium text-neutral-900 truncate">{userName}</p>
-                  )}
-                  {userEmail && (
-                    <p className="text-xs text-neutral-500 truncate">{userEmail}</p>
-                  )}
-                </div>
-              )}
-              <button
-                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
-                onClick={() => {
-                  localStorage.removeItem("user");
-                  router.push("/");
-                }}
-              >
-                <LuLogOut className="h-4 w-4" />
-                Cerrar sesión
-              </button>
-            </PopoverContent>
-          </Popover>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <BranchSelector
+              branches={branches}
+              selectedBranchId={selectedBranchId}
+              onBranchChange={handleBranchChange}
+            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="cursor-pointer rounded-full focus:outline-none focus:ring-2 focus:ring-neutral-300">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-800 text-sm font-semibold text-white">
+                    {(userName || storeName).charAt(0).toUpperCase()}
+                  </div>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-56 p-1">
+                {(userName || userEmail) && (
+                  <div className="px-3 py-2 border-b border-neutral-200 mb-1">
+                    {userName && (
+                      <p className="text-sm font-medium text-neutral-900 truncate">{userName}</p>
+                    )}
+                    {userEmail && (
+                      <p className="text-xs text-neutral-500 truncate">{userEmail}</p>
+                    )}
+                  </div>
+                )}
+                <button
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                  onClick={() => {
+                    clearSWRCache();
+                    localStorage.removeItem("user");
+                    router.push("/");
+                  }}
+                >
+                  <LuLogOut className="h-4 w-4" />
+                  Cerrar sesión
+                </button>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
         {/* Tabs */}
-        <nav className="flex gap-0 px-6 overflow-x-auto">
+        {!pathname.startsWith('/dashboard/pos') && <nav className="flex items-center gap-0 px-3 sm:px-6 overflow-x-auto">
           {allTabs.filter((tab) => tab.roles.includes(userRole)).map((tab) => {
             const isActive = tab.href === "/dashboard"
               ? pathname === "/dashboard"
@@ -173,27 +284,36 @@ export default function DashboardLayout({
                 href={tab.href}
                 className={cn(
                   "flex items-center border-b-2 font-medium transition-colors",
-                  tab.size === "small"
-                    ? "gap-1 px-3 py-2 text-xs"
-                    : "gap-1.5 px-4 py-2 text-sm",
+                  "gap-0 px-2.5 py-2 text-xs sm:gap-1.5 sm:px-4 sm:py-2 sm:text-sm",
+                  tab.size === "small" && "sm:gap-1 sm:px-3 sm:text-xs",
                   isActive
                     ? "border-neutral-900 text-neutral-900"
                     : "border-transparent text-neutral-500 hover:text-neutral-700"
                 )}
               >
-                <tab.icon className={tab.size === "small" ? "h-3.5 w-3.5" : "h-4 w-4"} />
-                {tab.label}
+                <tab.icon className="h-5 w-5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">{tab.label}</span>
               </Link>
             );
           })}
-        </nav>
+          <Link
+            href="/ayuda"
+            className="flex items-center gap-0 sm:gap-1.5 border-b-2 border-transparent px-2.5 sm:px-4 py-2 text-xs sm:text-sm font-medium text-neutral-500/70 hover:text-neutral-600 transition-colors"
+          >
+            <LuCircleHelp className="h-5 w-5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Ayuda</span>
+          </Link>
+        </nav>}
       </header>
 
       {/* Content */}
-      <main className="flex-1 p-6">
-        <DashboardProvider storeId={storeId} storeName={storeName} storeSlug={storeSlug} storePlan={storePlan} userId={userId} userRole={userRole}>
-          {children}
-        </DashboardProvider>
+      <main className="flex-1 p-4 sm:p-6">
+        <SWRProvider>
+          <DashboardProvider storeId={storeId} storeName={storeName} storeSlug={storeSlug} storePlan={storePlan} planExpiresAt={planExpiresAt} userId={userId} userRole={userRole} branchId={selectedBranchId} branchName={selectedBranchName} branchSlug={selectedBranchSlug} refetchBranches={refetchBranches}>
+            {planLoaded && <TrialBanner />}
+            {children}
+          </DashboardProvider>
+        </SWRProvider>
       </main>
     </div>
   );

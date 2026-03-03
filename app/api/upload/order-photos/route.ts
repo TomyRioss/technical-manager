@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const ext = file.name.split(".").pop();
     const fileName = `orders/${orderId}/${crypto.randomUUID()}.${ext}`;
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const buffer = new Uint8Array(await file.arrayBuffer());
 
     const { error } = await supabase.storage
       .from("order-photos")
@@ -35,7 +35,8 @@ export async function POST(req: NextRequest) {
       .getPublicUrl(fileName);
 
     return NextResponse.json({ url: publicUrlData.publicUrl });
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("POST /api/upload/order-photos error:", error);
+    return NextResponse.json({ error: "Error al subir fotos de la orden" }, { status: 500 });
   }
 }

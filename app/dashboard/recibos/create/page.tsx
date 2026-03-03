@@ -190,113 +190,6 @@ export default function CreateReceiptPage() {
     </div>
   );
 
-  const ItemsGrid = () => (
-    <div className="space-y-2">
-      <Label>Ítems</Label>
-      <div className="space-y-2">
-        {formItems.map((item) => (
-          <div
-            key={item.id}
-            className="grid grid-cols-[1fr_80px_100px_100px_36px] items-center gap-2"
-          >
-            <div className="relative">
-              <div className="relative">
-                <LuSearch className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
-                <Input
-                  placeholder="Buscar producto..."
-                  value={searchId === item.id ? searchQuery : item.name}
-                  onFocus={() => {
-                    setSearchId(item.id);
-                    setSearchQuery(item.name);
-                  }}
-                  onChange={(e) => {
-                    setSearchId(item.id);
-                    setSearchQuery(e.target.value);
-                    updateItem(item.id, "name", e.target.value);
-                  }}
-                  onBlur={() => {
-                    setTimeout(() => setSearchId(null), 150);
-                  }}
-                  className="pl-8"
-                />
-              </div>
-              {searchId === item.id && searchQuery && filteredProducts.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full rounded-md border border-neutral-200 bg-white shadow-md">
-                  <ul className="max-h-48 overflow-y-auto py-1">
-                    {filteredProducts.slice(0, 8).map((p) => (
-                      <li key={p.id}>
-                        <button
-                          type="button"
-                          className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-neutral-50"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            selectProduct(item.id, p);
-                          }}
-                        >
-                          <span className="text-neutral-900">{p.name}</span>
-                          <span className="text-neutral-500">${formatPrice(p.price)}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-            <div className="relative">
-              <Input
-                type="number"
-                min={1}
-                placeholder="Cant."
-                value={item.quantity || ""}
-                onChange={(e) =>
-                  updateItem(
-                    item.id,
-                    "quantity",
-                    parseInt(e.target.value) || 0
-                  )
-                }
-                className={itemExceedsStock(item) ? "border-amber-400 focus-visible:ring-amber-400/30 focus-visible:border-amber-400 pr-8" : ""}
-              />
-              {itemExceedsStock(item) && (
-                <div className="group absolute right-2 top-1/2 -translate-y-1/2">
-                  <LuTriangleAlert className="h-4 w-4 text-amber-500" />
-                  <div className="absolute bottom-full right-0 mb-1.5 hidden group-hover:block w-max max-w-56 rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs text-white shadow-md">
-                    Más unidades que las disponibles en stock.
-                  </div>
-                </div>
-              )}
-            </div>
-            <PriceInput
-              placeholder="P. unitario"
-              value={item.unitPrice}
-              onChange={(val) => updateItem(item.id, "unitPrice", val)}
-            />
-            <span className="text-right text-sm font-medium text-neutral-700">
-              ${formatPrice(item.lineTotal)}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-neutral-500 hover:text-red-600"
-              onClick={() => removeItem(item.id)}
-            >
-              <LuTrash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        ))}
-      </div>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={addItem}
-      >
-        <LuPlus className="mr-1.5 h-4 w-4" />
-        Agregar ítem
-      </Button>
-    </div>
-  );
-
   const SummarySection = () => (
     <>
       <Separator />
@@ -434,7 +327,109 @@ export default function CreateReceiptPage() {
           <div className="max-w-2xl mx-auto space-y-4">
             <h2 className="text-2xl font-semibold text-center">Ítems y Detalles</h2>
 
-            <ItemsGrid />
+            <div className="space-y-2">
+      <Label>Ítems</Label>
+      <div className="space-y-2">
+        {formItems.map((item) => (
+          <div
+            key={item.id}
+            className="flex flex-col gap-2 rounded-md border p-3 sm:grid sm:grid-cols-[1fr_80px_100px_100px_36px] sm:items-center sm:gap-2 sm:border-0 sm:p-0 sm:rounded-none"
+          >
+            <div className="relative">
+              <div className="relative">
+                <LuSearch className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
+                <Input
+                  placeholder="Buscar producto..."
+                  value={searchId === item.id ? searchQuery : item.name}
+                  onFocus={() => {
+                    setSearchId(item.id);
+                    setSearchQuery(item.name);
+                  }}
+                  onChange={(e) => {
+                    setSearchId(item.id);
+                    setSearchQuery(e.target.value);
+                    updateItem(item.id, "name", e.target.value);
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setSearchId(null), 150);
+                  }}
+                  className="pl-8"
+                />
+              </div>
+              {searchId === item.id && searchQuery && filteredProducts.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full rounded-md border border-neutral-200 bg-white shadow-md">
+                  <ul className="max-h-48 overflow-y-auto py-1">
+                    {filteredProducts.slice(0, 8).map((p) => (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-neutral-50"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectProduct(item.id, p);
+                          }}
+                        >
+                          <span className="text-neutral-900">{p.name}</span>
+                          <span className="text-neutral-500">${formatPrice(p.price)}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:contents">
+              <div className="relative">
+                <span className="text-xs text-muted-foreground mb-1 block sm:hidden">Cant.</span>
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="Cant."
+                  value={item.quantity || ""}
+                  onChange={(e) =>
+                    updateItem(item.id, "quantity", parseInt(e.target.value) || 0)
+                  }
+                  className={itemExceedsStock(item) ? "border-amber-400 focus-visible:ring-amber-400/30 focus-visible:border-amber-400 pr-8" : ""}
+                />
+                {itemExceedsStock(item) && (
+                  <div className="group absolute right-2 bottom-2 sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2">
+                    <LuTriangleAlert className="h-4 w-4 text-amber-500" />
+                    <div className="absolute bottom-full right-0 mb-1.5 hidden group-hover:block w-max max-w-56 rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs text-white shadow-md">
+                      Más unidades que las disponibles en stock.
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground mb-1 block sm:hidden">P. unitario</span>
+                <PriceInput
+                  placeholder="P. unitario"
+                  value={item.unitPrice}
+                  onChange={(val) => updateItem(item.id, "unitPrice", val)}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between sm:contents">
+              <span className="text-sm font-medium text-neutral-700 sm:text-right">
+                <span className="sm:hidden">Total: </span>${formatPrice(item.lineTotal)}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-neutral-500 hover:text-red-600"
+                onClick={() => removeItem(item.id)}
+              >
+                <LuTrash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <Button type="button" variant="outline" size="sm" onClick={addItem}>
+        <LuPlus className="mr-1.5 h-4 w-4" />
+        Agregar ítem
+      </Button>
+    </div>
 
             {/* Commission rate */}
             <div className="space-y-2">
@@ -587,7 +582,109 @@ export default function CreateReceiptPage() {
         </div>
 
         {/* Items */}
-        <ItemsGrid />
+        <div className="space-y-2">
+      <Label>Ítems</Label>
+      <div className="space-y-2">
+        {formItems.map((item) => (
+          <div
+            key={item.id}
+            className="flex flex-col gap-2 rounded-md border p-3 sm:grid sm:grid-cols-[1fr_80px_100px_100px_36px] sm:items-center sm:gap-2 sm:border-0 sm:p-0 sm:rounded-none"
+          >
+            <div className="relative">
+              <div className="relative">
+                <LuSearch className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
+                <Input
+                  placeholder="Buscar producto..."
+                  value={searchId === item.id ? searchQuery : item.name}
+                  onFocus={() => {
+                    setSearchId(item.id);
+                    setSearchQuery(item.name);
+                  }}
+                  onChange={(e) => {
+                    setSearchId(item.id);
+                    setSearchQuery(e.target.value);
+                    updateItem(item.id, "name", e.target.value);
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setSearchId(null), 150);
+                  }}
+                  className="pl-8"
+                />
+              </div>
+              {searchId === item.id && searchQuery && filteredProducts.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full rounded-md border border-neutral-200 bg-white shadow-md">
+                  <ul className="max-h-48 overflow-y-auto py-1">
+                    {filteredProducts.slice(0, 8).map((p) => (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-neutral-50"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectProduct(item.id, p);
+                          }}
+                        >
+                          <span className="text-neutral-900">{p.name}</span>
+                          <span className="text-neutral-500">${formatPrice(p.price)}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:contents">
+              <div className="relative">
+                <span className="text-xs text-muted-foreground mb-1 block sm:hidden">Cant.</span>
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="Cant."
+                  value={item.quantity || ""}
+                  onChange={(e) =>
+                    updateItem(item.id, "quantity", parseInt(e.target.value) || 0)
+                  }
+                  className={itemExceedsStock(item) ? "border-amber-400 focus-visible:ring-amber-400/30 focus-visible:border-amber-400 pr-8" : ""}
+                />
+                {itemExceedsStock(item) && (
+                  <div className="group absolute right-2 bottom-2 sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2">
+                    <LuTriangleAlert className="h-4 w-4 text-amber-500" />
+                    <div className="absolute bottom-full right-0 mb-1.5 hidden group-hover:block w-max max-w-56 rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs text-white shadow-md">
+                      Más unidades que las disponibles en stock.
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground mb-1 block sm:hidden">P. unitario</span>
+                <PriceInput
+                  placeholder="P. unitario"
+                  value={item.unitPrice}
+                  onChange={(val) => updateItem(item.id, "unitPrice", val)}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between sm:contents">
+              <span className="text-sm font-medium text-neutral-700 sm:text-right">
+                <span className="sm:hidden">Total: </span>${formatPrice(item.lineTotal)}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-neutral-500 hover:text-red-600"
+                onClick={() => removeItem(item.id)}
+              >
+                <LuTrash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <Button type="button" variant="outline" size="sm" onClick={addItem}>
+        <LuPlus className="mr-1.5 h-4 w-4" />
+        Agregar ítem
+      </Button>
+    </div>
 
         {/* Commission rate */}
         <div className="space-y-2">

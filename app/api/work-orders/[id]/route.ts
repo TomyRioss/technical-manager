@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkReadOnly } from "@/lib/plan-guard";
 
 export async function GET(
   _req: NextRequest,
@@ -32,8 +33,14 @@ export async function GET(
     }
 
     return NextResponse.json(order);
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("GET /api/work-orders/[id] error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al obtener orden de trabajo" }, { status: 500 });
   }
 }
 
@@ -43,6 +50,13 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+
+    const existing = await prisma.workOrder.findUnique({ where: { id }, select: { storeId: true } });
+    if (existing) {
+      const guard = await checkReadOnly(existing.storeId);
+      if (guard) return guard;
+    }
+
     const body = await req.json();
     const { deviceModel, reportedFault, faultTags, agreedPrice, technicianId, internalNotes, warrantyDays, partsCost } = body;
 
@@ -66,8 +80,14 @@ export async function PUT(
     });
 
     return NextResponse.json(order);
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("PUT /api/work-orders/[id] error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe una orden con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al actualizar orden de trabajo" }, { status: 500 });
   }
 }
 
@@ -78,13 +98,25 @@ export async function DELETE(
   try {
     const { id } = await params;
 
+    const existing = await prisma.workOrder.findUnique({ where: { id }, select: { storeId: true } });
+    if (existing) {
+      const guard = await checkReadOnly(existing.storeId);
+      if (guard) return guard;
+    }
+
     await prisma.workOrder.update({
       where: { id },
       data: { isActive: false },
     });
 
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("DELETE /api/work-orders/[id] error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al eliminar orden de trabajo" }, { status: 500 });
   }
 }

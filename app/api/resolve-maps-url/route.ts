@@ -43,7 +43,10 @@ export async function POST(req: NextRequest) {
               address = geoData.display_name;
             }
           }
-        } catch {}
+        } catch (error: unknown) {
+          console.error("GET /api/resolve-maps-url error:", error);
+          // continue with fallback
+        }
 
         return NextResponse.json({
           lat,

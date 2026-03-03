@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET(req: NextRequest) {
   try {
     const storeId = req.nextUrl.searchParams.get("storeId");
+    const branchId = req.nextUrl.searchParams.get("branchId");
     if (!storeId) {
       return NextResponse.json({ error: "storeId requerido" }, { status: 400 });
     }
@@ -12,8 +13,11 @@ export async function GET(req: NextRequest) {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
+    const orderWhere: Record<string, unknown> = { storeId, isActive: true, createdAt: { gte: sixMonthsAgo } };
+    if (branchId) orderWhere.branchId = branchId;
+
     const orders = await prisma.workOrder.findMany({
-      where: { storeId, isActive: true, createdAt: { gte: sixMonthsAgo } },
+      where: orderWhere,
       select: { createdAt: true, status: true, faultTags: true, technicianId: true, agreedPrice: true },
     });
 
@@ -73,7 +77,13 @@ export async function GET(req: NextRequest) {
       commonFaults,
       technicianStats: Object.values(techStats).filter((t) => t.total > 0),
     });
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("GET /api/stats/business error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al obtener estadísticas del negocio" }, { status: 500 });
   }
 }

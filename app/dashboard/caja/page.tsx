@@ -6,19 +6,19 @@ import { PeriodComparison } from "@/components/stats/period-comparison";
 import { useDashboard } from "@/contexts/dashboard-context";
 
 export default function CajaPage() {
-  const { storeId } = useDashboard();
+  const { storeId, branchId } = useDashboard();
   const [period, setPeriod] = useState("today");
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/stats/cash-summary?storeId=${storeId}&period=${period}`);
+    const res = await fetch(`/api/stats/cash-summary?storeId=${storeId}&branchId=${branchId}&period=${period}`);
     if (res.ok) {
       setData(await res.json());
     }
     setLoading(false);
-  }, [storeId, period]);
+  }, [storeId, branchId, period]);
 
   useEffect(() => {
     fetchData();
@@ -26,8 +26,7 @@ export default function CajaPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Caja</h1>
+      <div className="flex items-center justify-end">
         <PeriodComparison period={period} onPeriodChange={setPeriod} />
       </div>
 

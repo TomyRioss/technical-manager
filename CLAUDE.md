@@ -45,3 +45,4 @@
 - No hacer mas de lo pedido. Seguir requerimientos al pie de la letra
 - Ser concreto y directo en cada respuesta
 - NUNCA hardcodear información. Todos los datos deben ser obtenidos desde la base de datos
+- NUNCA crear valores hardcodeados/fallback que enmascaren datos reales (ej: "Sucursal 1" falso cuando no hay sucursales)

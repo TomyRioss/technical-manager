@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CategorySelect } from "@/components/ui/category-select";
+import { Textarea } from "@/components/ui/textarea";
 import { LuArrowLeft, LuUpload } from "react-icons/lu";
 import Link from "next/link";
 
 const emptyProduct: Omit<Product, "id"> = {
   name: "",
+  description: "",
   sku: "",
   costPrice: undefined,
   price: 0,
@@ -41,6 +43,7 @@ export default function EditProductPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
@@ -51,6 +54,7 @@ export default function EditProductPage() {
     }
     setForm({
       name: product.name,
+      description: product.description || "",
       sku: product.sku,
       costPrice: product.costPrice,
       price: product.price,
@@ -81,16 +85,23 @@ export default function EditProductPage() {
   async function handleSave() {
     if (!form.name.trim()) return;
     setSaving(true);
+    setUploadError(null);
 
     await updateProduct(id, form);
+    let hadUploadError = false;
 
     if (imageFile) {
       const url = await uploadImage(imageFile);
-      if (url) setProductImage(id, url);
+      if (url) {
+        setProductImage(id, url);
+      } else {
+        hadUploadError = true;
+        setUploadError("No se pudo subir la imagen. Los demás cambios se guardaron correctamente.");
+      }
     }
 
     setSaving(false);
-    router.push("/dashboard/inventario");
+    if (!hadUploadError) router.push("/dashboard/inventario");
   }
 
   if (notFound) {
@@ -166,6 +177,18 @@ export default function EditProductPage() {
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="Nombre del producto"
+          />
+        </div>
+
+        {/* Description */}
+        <div className="space-y-2">
+          <Label htmlFor="description">Descripción</Label>
+          <Textarea
+            id="description"
+            value={form.description || ""}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            placeholder="Descripción del producto"
+            rows={3}
           />
         </div>
 
@@ -261,6 +284,10 @@ export default function EditProductPage() {
             Producto activo
           </Label>
         </div>
+
+        {uploadError && (
+          <p className="text-sm text-red-600 font-medium">{uploadError}</p>
+        )}
 
         {/* Actions */}
         <div className="flex items-center gap-3 pt-2">

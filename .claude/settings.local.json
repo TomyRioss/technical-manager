@@ -30,7 +30,12 @@
       "WebFetch(domain:www.pexels.com)",
       "WebFetch(domain:images.pexels.com)",
       "WebFetch(domain:www.repairdesk.co)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "WebFetch(domain:m1.material.io)",
+      "WebFetch(domain:www.designmonks.co)",
+      "Bash(head:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)"
     ]
   }
 }

@@ -10,7 +10,7 @@ export async function PATCH(
     const body = await req.json();
     const { role } = body;
 
-    if (!role || !["OWNER", "TECHNICIAN"].includes(role)) {
+    if (!role || !["OWNER", "MANAGER", "TECHNICIAN"].includes(role)) {
       return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
     }
 

@@ -1,19 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { checkReadOnly } from "@/lib/plan-guard";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const item = await prisma.item.findFirst({
-    where: { id, isActive: true },
-    include: { category: { select: { id: true, name: true } } } as any,
-  });
-  if (!item) {
-    return NextResponse.json({ error: "Item no encontrado" }, { status: 404 });
+  try {
+    const item = await prisma.item.findFirst({
+      where: { id, isActive: true },
+      include: { category: { select: { id: true, name: true } } } as any,
+    });
+    if (!item) {
+      return NextResponse.json({ error: "Item no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json(item);
+  } catch (error: unknown) {
+    console.error("GET /api/items/[id] error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al obtener el producto" }, { status: 500 });
   }
-  return NextResponse.json(item);
 }
 
 export async function PUT(
@@ -21,24 +32,42 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const body = await req.json();
-  const { name, sku, costPrice, salePrice, stock, isActive, categoryId } = body;
 
-  const item = await prisma.item.update({
-    where: { id },
-    data: {
-      ...(name !== undefined && { name }),
-      ...(sku !== undefined && { sku }),
-      ...(costPrice !== undefined && { costPrice: costPrice || null }),
-      ...(salePrice !== undefined && { salePrice }),
-      ...(stock !== undefined && { stock }),
-      ...(isActive !== undefined && { isActive }),
-      ...(categoryId !== undefined && { categoryId: categoryId || null }),
-    } as any,
-    include: { category: { select: { id: true, name: true } } } as any,
-  });
+  try {
+    const existing = await prisma.item.findUnique({ where: { id }, select: { storeId: true } });
+    if (existing) {
+      const guard = await checkReadOnly(existing.storeId);
+      if (guard) return guard;
+    }
 
-  return NextResponse.json(item);
+    const body = await req.json();
+    const { name, description, sku, costPrice, salePrice, stock, isActive, categoryId } = body;
+
+    const item = await prisma.item.update({
+      where: { id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description: description || null }),
+        ...(sku !== undefined && { sku }),
+        ...(costPrice !== undefined && { costPrice: costPrice || null }),
+        ...(salePrice !== undefined && { salePrice }),
+        ...(stock !== undefined && { stock }),
+        ...(isActive !== undefined && { isActive }),
+        ...(categoryId !== undefined && { categoryId: categoryId || null }),
+      } as any,
+      include: { category: { select: { id: true, name: true } } } as any,
+    });
+
+    return NextResponse.json(item);
+  } catch (error: unknown) {
+    console.error("PUT /api/items/[id] error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al actualizar el producto" }, { status: 500 });
+  }
 }
 
 export async function DELETE(
@@ -46,6 +75,23 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  await prisma.item.update({ where: { id }, data: { isDeleted: true } });
-  return NextResponse.json({ ok: true });
+
+  try {
+    const existing = await prisma.item.findUnique({ where: { id }, select: { storeId: true } });
+    if (existing) {
+      const guard = await checkReadOnly(existing.storeId);
+      if (guard) return guard;
+    }
+
+    await prisma.item.update({ where: { id }, data: { isDeleted: true } });
+    return NextResponse.json({ ok: true });
+  } catch (error: unknown) {
+    console.error("DELETE /api/items/[id] error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al eliminar el producto" }, { status: 500 });
+  }
 }

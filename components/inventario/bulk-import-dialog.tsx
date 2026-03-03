@@ -56,7 +56,7 @@ interface BulkImportDialogProps {
 }
 
 export function BulkImportDialog({ open, onOpenChange }: BulkImportDialogProps) {
-  const { storeId } = useDashboard();
+  const { storeId, branchId } = useDashboard();
 
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [items, setItems] = useState<ParsedItem[]>([]);
@@ -85,14 +85,20 @@ export function BulkImportDialog({ open, onOpenChange }: BulkImportDialogProps) 
       const res = await fetch("/api/items/check-skus", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storeId, skus }),
+        body: JSON.stringify({ storeId, branchId, skus }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Error al verificar duplicados");
+      }
       const data = await res.json();
       setActiveDuplicates(new Set(data.activeDuplicates || []));
-    } catch {
+    } catch (err) {
+      console.error("Error checking duplicate SKUs:", err);
+      setError(err instanceof Error ? err.message : "Error al verificar duplicados");
       setActiveDuplicates(new Set());
     }
-  }, [storeId]);
+  }, [storeId, branchId]);
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -210,6 +216,11 @@ export function BulkImportDialog({ open, onOpenChange }: BulkImportDialogProps) 
   const handleConfirm = useCallback(async () => {
     if (items.length === 0) return;
 
+    if (!storeId || !branchId) {
+      setError("No se pudo determinar la tienda o sucursal. Recargá la página e intentá de nuevo.");
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
@@ -217,7 +228,7 @@ export function BulkImportDialog({ open, onOpenChange }: BulkImportDialogProps) 
       const res = await fetch("/api/items/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storeId, items }),
+        body: JSON.stringify({ storeId, branchId, items }),
       });
 
       if (!res.ok) {
@@ -233,7 +244,7 @@ export function BulkImportDialog({ open, onOpenChange }: BulkImportDialogProps) 
     } finally {
       setSaving(false);
     }
-  }, [items, storeId, onOpenChange]);
+  }, [items, storeId, branchId, onOpenChange]);
 
   const handleClose = useCallback(() => {
     setItems([]);

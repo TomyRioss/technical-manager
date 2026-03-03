@@ -26,8 +26,9 @@ const exportFormats = [
 ];
 
 export function ExportPanel() {
-  const { storeId } = useDashboard();
+  const { storeId, branchId } = useDashboard();
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [formats, setFormats] = useState<Record<string, string>>({
     orders: "xlsx",
     clients: "xlsx",
@@ -37,8 +38,13 @@ export function ExportPanel() {
   async function handleExport(type: string) {
     const format = formats[type] || "xlsx";
     setDownloading(type);
-    const res = await fetch(`/api/export?storeId=${storeId}&type=${type}&format=${format}`);
-    if (res.ok) {
+    setError(null);
+    try {
+      const res = await fetch(`/api/export?storeId=${storeId}&branchId=${branchId}&type=${type}&format=${format}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Error al exportar los datos");
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -46,11 +52,16 @@ export function ExportPanel() {
       a.download = `${type}-${new Date().toISOString().split("T")[0]}.${format}`;
       a.click();
       URL.revokeObjectURL(url);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al exportar los datos");
     }
     setDownloading(null);
   }
 
   return (
+    <div className="space-y-4">
+      {error && <p className="text-sm text-red-600">{error}</p>}
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       {exportTypes.map((t) => (
         <Card key={t.key}>
@@ -90,6 +101,7 @@ export function ExportPanel() {
           </CardContent>
         </Card>
       ))}
+    </div>
     </div>
   );
 }

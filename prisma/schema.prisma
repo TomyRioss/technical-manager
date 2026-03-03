@@ -26,6 +26,7 @@ enum ReceiptStatus {
 
 enum UserRole {
   OWNER
+  MANAGER
   TECHNICIAN
 }
 
@@ -59,6 +60,7 @@ enum WarrantyStatus {
 
 enum StorePlan {
   FREE
+  DEMO
   BASIC
   PRO
   ENTERPRISE
@@ -74,7 +76,7 @@ model Store {
   address       String?
   phone         String?
   isActive      Boolean    @default(true) @map("is_active")
-  plan          StorePlan  @default(FREE)
+  plan          StorePlan  @default(DEMO)
   planExpiresAt DateTime?  @map("plan_expires_at")
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @updatedAt @map("updated_at")
@@ -88,6 +90,7 @@ model Store {
   settings      StoreSettings?
   deviceBrands  DeviceBrand[]
   categories    Category[]
+  branches      Branch[]
 
   @@map("stores")
 }
@@ -117,6 +120,7 @@ model User {
   createdOrders      WorkOrder[]      @relation("CreatedByOrders")
   statusChanges      OrderStatusLog[]
   notes              OrderNote[]
+  userBranches       UserBranch[]
 
   @@index([storeId])
   @@map("users")
@@ -128,9 +132,10 @@ model User {
 
 model Item {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sku       String
-  name      String
-  costPrice Float?   @map("cost_price")
+  sku         String
+  name        String
+  description String?  @db.Text
+  costPrice   Float?   @map("cost_price")
   salePrice Float    @map("sale_price")
   stock     Int      @default(0)
   imageUrl  String?  @map("image_url")
@@ -142,6 +147,9 @@ model Item {
   storeId String @map("store_id") @db.Uuid
   store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
+  branchId String? @map("branch_id") @db.Uuid
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
   categoryId String?   @map("category_id") @db.Uuid
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
@@ -149,6 +157,7 @@ model Item {
 
   @@unique([storeId, sku])
   @@index([storeId])
+  @@index([branchId])
   @@index([name])
   @@index([sku])
   @@index([categoryId])
@@ -176,6 +185,9 @@ model Receipt {
   storeId String @map("store_id") @db.Uuid
   store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
+  branchId String? @map("branch_id") @db.Uuid
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
   userId String @map("user_id") @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -183,6 +195,7 @@ model Receipt {
 
   @@unique([storeId, receiptNumber])
   @@index([storeId])
+  @@index([branchId])
   @@index([userId])
   @@index([status])
   @@index([paymentMethod])
@@ -251,9 +264,13 @@ model Client {
   storeId String @map("store_id") @db.Uuid
   store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
+  branchId String? @map("branch_id") @db.Uuid
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
   workOrders WorkOrder[]
 
   @@index([storeId])
+  @@index([branchId])
   @@index([name])
   @@index([phone])
   @@map("clients")
@@ -293,6 +310,9 @@ model WorkOrder {
   storeId String @map("store_id") @db.Uuid
   store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
+  branchId String? @map("branch_id") @db.Uuid
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
   photos     OrderPhoto[]
   statusLogs OrderStatusLog[]
   notes      OrderNote[]
@@ -300,6 +320,7 @@ model WorkOrder {
 
   @@unique([storeId, orderCode])
   @@index([storeId])
+  @@index([branchId])
   @@index([clientId])
   @@index([technicianId])
   @@index([status])
@@ -472,4 +493,70 @@ model DeviceModel {
   @@unique([brandId, name])
   @@index([brandId])
   @@map("device_models")
+}
+
+// ============================================================
+// BRANCH (Sucursal del Local)
+// ============================================================
+
+model Branch {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  slug      String?  @unique
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true) @map("is_active")
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Configuración independiente por sucursal
+  googleMapsUrl      String?  @map("google_maps_url")
+  whatsappNumber     String?  @map("whatsapp_number")
+  businessHours      String?  @map("business_hours")
+  mapLatitude        Float?   @map("map_latitude")
+  mapLongitude       Float?   @map("map_longitude")
+  facebookUrl        String?  @map("facebook_url")
+  instagramUrl       String?  @map("instagram_url")
+  tiktokUrl          String?  @map("tiktok_url")
+  twitterUrl         String?  @map("twitter_url")
+  youtubeUrl         String?  @map("youtube_url")
+
+  // Referencias compartidas (UUID de otra branch, sin relation)
+  phoneBranchRef     String?  @map("phone_branch_ref") @db.Uuid
+  socialBranchRef    String?  @map("social_branch_ref") @db.Uuid
+  hoursBranchRef     String?  @map("hours_branch_ref") @db.Uuid
+
+  storeId String @map("store_id") @db.Uuid
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  items        Item[]
+  clients      Client[]
+  workOrders   WorkOrder[]
+  receipts     Receipt[]
+  userBranches UserBranch[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("branches")
+}
+
+// ============================================================
+// USER BRANCH (Asignación Usuario-Sucursal)
+// ============================================================
+
+model UserBranch {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  branchId String @map("branch_id") @db.Uuid
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, branchId])
+  @@index([userId])
+  @@index([branchId])
+  @@map("user_branches")
 }

@@ -20,7 +20,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { LuPlus, LuTrash2, LuSearch, LuEye, LuLoader, LuArchiveX } from "react-icons/lu";
+import { LuPlus, LuTrash2, LuSearch, LuEye, LuLoader, LuArchiveX, LuPrinter } from "react-icons/lu";
+import { ReceiptPrintModal } from "@/components/receipts/receipt-print-modal";
 import {
   Tooltip,
   TooltipContent,
@@ -28,13 +29,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatPrice } from "@/lib/utils";
+import { useStorePlan } from "@/hooks/use-store-plan";
 import type { Receipt } from "@/types/receipt";
 
 export default function RecibosPage() {
-  const { receipts, archivedReceipts, deleteReceipt, archiveReceipt, loading } = useDashboard();
+  const { receipts, archivedReceipts, deleteReceipt, archiveReceipt, loading, storeId, storeName, branchName } = useDashboard();
+  const { isReadOnly } = useStorePlan();
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [printingReceipt, setPrintingReceipt] = useState<Receipt | null>(null);
 
   function filterReceipts(list: Receipt[]) {
     if (!search) return list;
@@ -82,16 +86,16 @@ export default function RecibosPage() {
     }
 
     return (
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Nro</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Método de pago</TableHead>
-              <TableHead className="text-right">Ítems</TableHead>
-              <TableHead className="text-right">Subtotal</TableHead>
-              <TableHead className="text-right">Comisión</TableHead>
+              <TableHead className="hidden md:table-cell">Fecha</TableHead>
+              <TableHead className="hidden md:table-cell">Método de pago</TableHead>
+              <TableHead className="text-right hidden md:table-cell">Ítems</TableHead>
+              <TableHead className="text-right hidden md:table-cell">Subtotal</TableHead>
+              <TableHead className="text-right hidden md:table-cell">Comisión</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="w-28" />
@@ -102,18 +106,21 @@ export default function RecibosPage() {
               <TableRow key={receipt.id}>
                 <TableCell className="font-medium">
                   {receipt.receiptNumber}
+                  <div className="md:hidden text-xs text-neutral-400 mt-0.5">
+                    {receipt.paymentMethod} · {receipt.createdAt.toLocaleDateString("es-AR")}
+                  </div>
                 </TableCell>
-                <TableCell className="text-neutral-500">
+                <TableCell className="text-neutral-500 hidden md:table-cell">
                   {receipt.createdAt.toLocaleDateString("es-AR")}
                 </TableCell>
-                <TableCell>{receipt.paymentMethod}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="hidden md:table-cell">{receipt.paymentMethod}</TableCell>
+                <TableCell className="text-right hidden md:table-cell">
                   {receipt.items.length}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right hidden md:table-cell">
                   ${formatPrice(receipt.subtotal)}
                 </TableCell>
-                <TableCell className="text-right text-neutral-500">
+                <TableCell className="text-right text-neutral-500 hidden md:table-cell">
                   -${formatPrice(receipt.commissionAmount)}
                 </TableCell>
                 <TableCell className="text-right font-medium">
@@ -150,9 +157,22 @@ export default function RecibosPage() {
                         </TooltipTrigger>
                         <TooltipContent>Detalles</TooltipContent>
                       </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setPrintingReceipt(receipt)}
+                          >
+                            <LuPrinter className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Imprimir</TooltipContent>
+                      </Tooltip>
                       {showArchiveBtn && (
                         archivingId === receipt.id ? (
-                          <div className="flex items-center gap-1">
+                          <div className="flex flex-wrap items-center gap-1">
                             <Button
                               variant="default"
                               size="xs"
@@ -176,6 +196,7 @@ export default function RecibosPage() {
                                 size="icon"
                                 className="h-8 w-8 text-neutral-500 hover:text-amber-600"
                                 onClick={() => { setArchivingId(receipt.id); setDeletingId(null); }}
+                                disabled={isReadOnly}
                               >
                                 <LuArchiveX className="h-4 w-4" />
                               </Button>
@@ -185,7 +206,7 @@ export default function RecibosPage() {
                         )
                       )}
                       {deletingId === receipt.id ? (
-                        <div className="flex items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-1">
                           <Button
                             variant="destructive"
                             size="xs"
@@ -209,6 +230,7 @@ export default function RecibosPage() {
                               size="icon"
                               className="h-8 w-8 text-neutral-500 hover:text-red-600"
                               onClick={() => { setDeletingId(receipt.id); setArchivingId(null); }}
+                              disabled={isReadOnly}
                             >
                               <LuTrash2 className="h-4 w-4" />
                             </Button>
@@ -229,27 +251,37 @@ export default function RecibosPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-neutral-900">Recibos</h1>
-        <Link href="/dashboard/recibos/create">
-          <Button size="sm">
-            <LuPlus className="mr-1.5 h-4 w-4" />
-            Nuevo recibo
-          </Button>
-        </Link>
+      {/* Search + Botón */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="relative w-full sm:w-auto sm:max-w-sm sm:flex-1">
+          <LuSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+          <Input
+            placeholder="Buscar por número, método de pago..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="ml-auto">
+          <Link href="/dashboard/recibos/create" className={isReadOnly ? "pointer-events-none" : ""}>
+            <Button size="sm" disabled={isReadOnly}>
+              <LuPlus className="mr-1.5 h-4 w-4" />
+              Nuevo recibo
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <LuSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-        <Input
-          placeholder="Buscar por número, método de pago..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
+      {printingReceipt && (
+        <ReceiptPrintModal
+          open
+          onClose={() => setPrintingReceipt(null)}
+          receipt={printingReceipt}
+          storeName={storeName}
+          branchName={branchName}
+          storeId={storeId}
         />
-      </div>
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="recientes">

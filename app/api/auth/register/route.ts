@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { DEMO_TRIAL_DAYS } from "@/lib/store-plans";
 
 function generateInviteCode(): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -50,9 +51,12 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Crear Store
+      // Crear Store con plan DEMO (trial de 14 días)
+      const planExpiresAt = new Date();
+      planExpiresAt.setDate(planExpiresAt.getDate() + DEMO_TRIAL_DAYS);
+
       const store = await prisma.store.create({
-        data: { name: storeName },
+        data: { name: storeName, plan: "DEMO" as never, planExpiresAt },
       });
 
       // Crear StoreSettings con slug y código de invitación
@@ -73,6 +77,16 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // Crear Branch "Sucursal Principal" por defecto
+      const branch = await prisma.branch.create({
+        data: {
+          name: "Sucursal Principal",
+          slug: `${slug}-sucursal-principal`,
+          isDefault: true,
+          storeId: store.id,
+        },
+      });
+
       // Crear User como OWNER
       const user = await prisma.user.create({
         data: {
@@ -85,6 +99,28 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // Asignar user a branch default
+      await prisma.userBranch.create({
+        data: { userId: user.id, branchId: branch.id },
+      });
+
+      // Crear categorías por defecto
+      const DEFAULT_CATEGORIES = [
+        "FUNDAS",
+        "VIDRIOS TEMPLADOS",
+        "CARGADORES",
+        "AURICULARES",
+        "ESTEREOS",
+        "VARIOS",
+      ];
+
+      await (prisma as any).category.createMany({
+        data: DEFAULT_CATEGORIES.map((name) => ({
+          name,
+          storeId: store.id,
+        })),
+      });
+
       return NextResponse.json({
         user: {
           id: user.id,
@@ -94,6 +130,7 @@ export async function POST(req: NextRequest) {
           role: user.role,
           storeId: store.id,
           storeName: store.name,
+          branches: [branch],
         },
       });
     }
@@ -134,6 +171,19 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Asignar user a branch default de la tienda
+    const defaultBranch = await prisma.branch.findFirst({
+      where: { storeId: settings.store.id, isDefault: true, isActive: true },
+    });
+
+    if (defaultBranch) {
+      await prisma.userBranch.create({
+        data: { userId: user.id, branchId: defaultBranch.id },
+      });
+    }
+
+    const userBranches = defaultBranch ? [defaultBranch] : [];
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -143,6 +193,7 @@ export async function POST(req: NextRequest) {
         role: user.role,
         storeId: settings.store.id,
         storeName: settings.store.name,
+        branches: userBranches,
       },
     });
   } catch (error: unknown) {
@@ -162,7 +213,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: "Error del servidor. Intentá de nuevo más tarde." },
+      { error: "Error al registrar usuario. Intentá de nuevo más tarde." },
       { status: 500 }
     );
   }

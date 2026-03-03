@@ -1,37 +1,49 @@
+"use client";
+
+import Link from "next/link";
+import { useCart } from "@/contexts/cart-context";
 import { formatPrice } from "@/lib/utils";
-import { LuMessageCircle } from "react-icons/lu";
+import { LuShoppingCart, LuCheck } from "react-icons/lu";
+import { useState } from "react";
 
 interface TiendaProductCardProps {
+  id: string;
+  slug: string;
   name: string;
   salePrice: number;
   stock: number;
   imageUrl: string | null;
   category: string | null;
-  whatsappNumber: string | null;
-  storeName: string;
   primaryColor: string;
 }
 
 export function TiendaProductCard({
+  id,
+  slug,
   name,
   salePrice,
   stock,
   imageUrl,
   category,
-  whatsappNumber,
-  storeName,
 }: TiendaProductCardProps) {
-  const message = encodeURIComponent(
-    `Hola! Me interesa el producto: ${name}. Vi tu catalogo en ${storeName}.`
-  );
-  const whatsappUrl = whatsappNumber
-    ? `https://wa.me/${whatsappNumber}?text=${message}`
-    : null;
-
+  const { addToCart } = useCart();
+  const [added, setAdded] = useState(false);
   const isOutOfStock = stock === 0;
 
+  const handleAdd = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isOutOfStock) return;
+    addToCart({ id, name, salePrice, stock, imageUrl });
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1200);
+  };
+
   return (
-    <div className="flex flex-col rounded-lg border border-neutral-200 bg-white overflow-hidden">
+    <Link
+      href={`/${slug}/tienda/producto/${id}`}
+      className="flex flex-col rounded-lg border border-neutral-200 bg-white overflow-hidden transition-shadow hover:shadow-md"
+    >
       <div className="relative">
         {imageUrl ? (
           <img
@@ -75,21 +87,29 @@ export function TiendaProductCard({
           </span>
         </div>
 
-        {whatsappUrl && (
-          <a
-            href={isOutOfStock ? undefined : whatsappUrl}
-            target={isOutOfStock ? undefined : "_blank"}
-            rel={isOutOfStock ? undefined : "noopener noreferrer"}
-            className={`mt-3 flex items-center justify-center gap-2 rounded-md bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white transition-colors ${
-              isOutOfStock ? "cursor-not-allowed opacity-50" : "hover:bg-neutral-800"
-            }`}
-            onClick={(e) => isOutOfStock && e.preventDefault()}
-          >
-            <LuMessageCircle className="h-4 w-4" />
-            CONSULTAR
-          </a>
-        )}
+        <button
+          onClick={handleAdd}
+          className={`mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium text-white transition-colors ${
+            isOutOfStock
+              ? "cursor-not-allowed bg-neutral-400"
+              : added
+                ? "bg-green-600"
+                : "bg-neutral-900 hover:bg-neutral-800"
+          }`}
+        >
+          {added ? (
+            <>
+              <LuCheck className="h-4 w-4" />
+              Agregado
+            </>
+          ) : (
+            <>
+              <LuShoppingCart className="h-4 w-4" />
+              {isOutOfStock ? "AGOTADO" : "Agregar"}
+            </>
+          )}
+        </button>
       </div>
-    </div>
+    </Link>
   );
 }

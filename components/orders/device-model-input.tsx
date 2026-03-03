@@ -10,9 +10,10 @@ interface DeviceModelInputProps {
   storeId: string;
   value: string;
   onChange: (value: string) => void;
+  autoFocus?: boolean;
 }
 
-export function DeviceModelInput({ storeId, value, onChange }: DeviceModelInputProps) {
+export function DeviceModelInput({ storeId, value, onChange, autoFocus }: DeviceModelInputProps) {
   const [query, setQuery] = useState(value);
   const [results, setResults] = useState<DeviceOption[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -89,6 +90,7 @@ export function DeviceModelInput({ storeId, value, onChange }: DeviceModelInputP
           value={query}
           onChange={(e) => handleInputChange(e.target.value)}
           onFocus={() => query.length >= 2 && setShowResults(true)}
+          autoFocus={autoFocus}
           required
         />
       )}

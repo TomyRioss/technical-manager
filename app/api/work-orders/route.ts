@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage, buildReceiptMessage } from "@/lib/whatsapp";
+import { checkReadOnly } from "@/lib/plan-guard";
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,10 +10,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "storeId requerido" }, { status: 400 });
     }
 
+    const branchId = req.nextUrl.searchParams.get("branchId");
     const status = req.nextUrl.searchParams.get("status");
     const technicianId = req.nextUrl.searchParams.get("technicianId");
 
     const where: Record<string, unknown> = { storeId, isActive: true };
+    if (branchId) where.branchId = branchId;
     if (status) where.status = status;
     if (technicianId) where.technicianId = technicianId;
 
@@ -27,8 +30,14 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(orders);
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("GET /api/work-orders error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al obtener órdenes de trabajo" }, { status: 500 });
   }
 }
 
@@ -44,24 +53,28 @@ export async function POST(req: NextRequest) {
       technicianId,
       createdById,
       storeId,
+      branchId,
       internalNotes,
       warrantyDays,
       partsCost,
     } = body;
 
-    if (!deviceModel || !reportedFault || !clientId || !createdById || !storeId) {
+    if (!deviceModel || !reportedFault || !clientId || !createdById || !storeId || !branchId) {
       return NextResponse.json(
         { error: "Campos requeridos faltantes" },
         { status: 400 }
       );
     }
 
+    const guard = await checkReadOnly(storeId);
+    if (guard) return guard;
+
     // Generate order code: OT-YYYYMMDD-XXX
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, "");
     const count = await prisma.workOrder.count({
       where: {
-        storeId,
+        branchId,
         createdAt: {
           gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
         },
@@ -80,6 +93,7 @@ export async function POST(req: NextRequest) {
         technicianId: technicianId ?? null,
         createdById,
         storeId,
+        branchId,
         internalNotes: internalNotes ?? null,
         warrantyDays: warrantyDays ?? null,
         partsCost: partsCost ?? 0,
@@ -115,7 +129,13 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(order, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("POST /api/work-orders error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe una orden con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al crear orden de trabajo" }, { status: 500 });
   }
 }

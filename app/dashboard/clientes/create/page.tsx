@@ -9,7 +9,7 @@ import { LuArrowLeft } from "react-icons/lu";
 
 export default function CreateClientPage() {
   const router = useRouter();
-  const { storeId } = useDashboard();
+  const { storeId, branchId } = useDashboard();
   const [saving, setSaving] = useState(false);
 
   async function handleCreate(data: { name: string; phone: string; email: string; notes: string }) {
@@ -17,7 +17,7 @@ export default function CreateClientPage() {
     const res = await fetch("/api/clients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, storeId }),
+      body: JSON.stringify({ ...data, storeId, branchId }),
     });
     if (res.ok) {
       router.push("/dashboard/clientes");

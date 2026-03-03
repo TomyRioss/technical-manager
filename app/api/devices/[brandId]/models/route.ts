@@ -30,8 +30,14 @@ export async function POST(
     });
 
     return NextResponse.json(model);
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("POST /api/devices/[brandId]/models error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un modelo con ese nombre para esta marca" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al crear modelo de dispositivo" }, { status: 500 });
   }
 }
 
@@ -54,8 +60,14 @@ export async function PUT(
     });
 
     return NextResponse.json(model);
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("PUT /api/devices/[brandId]/models error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un modelo con ese nombre para esta marca" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Modelo no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al actualizar modelo de dispositivo" }, { status: 500 });
   }
 }
 
@@ -77,7 +89,13 @@ export async function DELETE(
     });
 
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("DELETE /api/devices/[brandId]/models error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Modelo no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al eliminar modelo de dispositivo" }, { status: 500 });
   }
 }

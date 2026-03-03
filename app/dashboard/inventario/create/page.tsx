@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { LuUpload } from "react-icons/lu";
 
 function generateSku(): string {
@@ -28,6 +29,7 @@ function generateSku(): string {
 
 const emptyProduct: Omit<Product, "id"> = {
   name: "",
+  description: "",
   sku: generateSku(),
   costPrice: 0,
   price: 0,
@@ -45,6 +47,7 @@ export default function CreateProductPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
@@ -78,16 +81,23 @@ export default function CreateProductPage() {
   async function handleSave() {
     if (!form.name.trim()) return;
     setSaving(true);
+    setUploadError(null);
 
     const itemId = await addProduct(form);
+    let hadUploadError = false;
 
     if (imageFile && itemId) {
       const url = await uploadImage(imageFile, itemId);
-      if (url) setProductImage(itemId, url);
+      if (url) {
+        setProductImage(itemId, url);
+      } else {
+        hadUploadError = true;
+        setUploadError("No se pudo subir la imagen. El producto se guardó sin imagen.");
+      }
     }
 
     setSaving(false);
-    router.push("/dashboard/inventario");
+    if (!hadUploadError) router.push("/dashboard/inventario");
   }
 
   function canContinue() {
@@ -149,6 +159,17 @@ export default function CreateProductPage() {
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="Nombre del producto"
             autoFocus
+          />
+        </div>
+
+        {/* Descripción */}
+        <div className="space-y-2">
+          <Label>Descripción (opcional)</Label>
+          <Textarea
+            value={form.description || ""}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            placeholder="Descripción del producto"
+            rows={3}
           />
         </div>
 
@@ -257,6 +278,10 @@ export default function CreateProductPage() {
             Producto activo
           </Label>
         </div>
+
+        {uploadError && (
+          <p className="text-sm text-red-600 font-medium">{uploadError}</p>
+        )}
 
         <div className="flex gap-2 justify-end">
           <Button variant="outline" onClick={() => router.push("/dashboard/inventario")} disabled={saving}>
@@ -493,6 +518,17 @@ export default function CreateProductPage() {
       <div className="space-y-4">
         <h3 className="font-semibold text-lg">Campos opcionales</h3>
 
+        {/* Descripción */}
+        <div className="space-y-2">
+          <Label>Descripción</Label>
+          <Textarea
+            value={form.description || ""}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            placeholder="Descripción del producto"
+            rows={3}
+          />
+        </div>
+
         {/* Imagen */}
         <div className="space-y-2">
           <Label>Imagen</Label>
@@ -552,6 +588,10 @@ export default function CreateProductPage() {
           </Label>
         </div>
       </div>
+
+      {uploadError && (
+        <p className="text-sm text-red-600 font-medium">{uploadError}</p>
+      )}
 
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={() => setStep(4)} disabled={saving}>

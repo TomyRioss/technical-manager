@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkReadOnly } from "@/lib/plan-guard";
 
 export async function GET(
   _req: NextRequest,
@@ -31,8 +32,14 @@ export async function GET(
     }
 
     return NextResponse.json(client);
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("GET /api/clients/[id] error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al obtener cliente" }, { status: 500 });
   }
 }
 
@@ -42,6 +49,13 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+
+    const existing = await prisma.client.findUnique({ where: { id }, select: { storeId: true } });
+    if (existing) {
+      const guard = await checkReadOnly(existing.storeId);
+      if (guard) return guard;
+    }
+
     const body = await req.json();
     const { name, phone, email, notes } = body;
 
@@ -51,8 +65,14 @@ export async function PUT(
     });
 
     return NextResponse.json(client);
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("PUT /api/clients/[id] error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un cliente con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al actualizar cliente" }, { status: 500 });
   }
 }
 
@@ -63,13 +83,25 @@ export async function DELETE(
   try {
     const { id } = await params;
 
+    const existing = await prisma.client.findUnique({ where: { id }, select: { storeId: true } });
+    if (existing) {
+      const guard = await checkReadOnly(existing.storeId);
+      if (guard) return guard;
+    }
+
     await prisma.client.update({
       where: { id },
       data: { isActive: false },
     });
 
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("DELETE /api/clients/[id] error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al eliminar cliente" }, { status: 500 });
   }
 }

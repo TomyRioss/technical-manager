@@ -49,6 +49,7 @@ export function OrderEditModal({ order, open, onClose, onSaved }: OrderEditModal
   const [warrantyDays, setWarrantyDays] = useState(order.warrantyDays?.toString() ?? "");
   const [technicians, setTechnicians] = useState<TechnicianOption[]>([]);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isDelivered = order.status === "ENTREGADO";
 
@@ -81,24 +82,32 @@ export function OrderEditModal({ order, open, onClose, onSaved }: OrderEditModal
     if (!deviceModel.trim() || !reportedFault.trim()) return;
 
     setSaving(true);
-    const res = await fetch(`/api/work-orders/${order.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        deviceModel: deviceModel.trim(),
-        reportedFault: reportedFault.trim(),
-        faultTags,
-        agreedPrice: agreedPrice || null,
-        partsCost: partsCost || 0,
-        technicianId: technicianId || null,
-        internalNotes: internalNotes.trim() || null,
-        ...(!isDelivered && { warrantyDays: warrantyDays ? parseInt(warrantyDays) : null }),
-      }),
-    });
+    setError(null);
+    try {
+      const res = await fetch(`/api/work-orders/${order.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceModel: deviceModel.trim(),
+          reportedFault: reportedFault.trim(),
+          faultTags,
+          agreedPrice: agreedPrice || null,
+          partsCost: partsCost || 0,
+          technicianId: technicianId || null,
+          internalNotes: internalNotes.trim() || null,
+          ...(!isDelivered && { warrantyDays: warrantyDays ? parseInt(warrantyDays) : null }),
+        }),
+      });
 
-    if (res.ok) {
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Error al actualizar la orden");
+      }
+
       onSaved();
       onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al actualizar la orden");
     }
     setSaving(false);
   }
@@ -201,6 +210,7 @@ export function OrderEditModal({ order, open, onClose, onSaved }: OrderEditModal
             />
           </div>
 
+          {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2 justify-end pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Cancelar

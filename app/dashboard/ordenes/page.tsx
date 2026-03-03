@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OrderCard } from "@/components/orders/order-card";
@@ -11,39 +12,24 @@ import { cn } from "@/lib/utils";
 import type { WorkOrder } from "@/types/work-order";
 import { LuPlus, LuSearch, LuLayoutGrid, LuList } from "react-icons/lu";
 import Link from "next/link";
+import { useStorePlan } from "@/hooks/use-store-plan";
+import { ServicesPanel } from "@/components/services/services-panel";
 
 type ViewTab = "todas" | "mias" | "activas";
+type PageTab = "ordenes" | "servicios";
 
 export default function OrdenesPage() {
-  const { storeId, userId } = useDashboard();
-  const [orders, setOrders] = useState<WorkOrder[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { storeId, userId, branchId } = useDashboard();
+  const { isReadOnly } = useStorePlan();
+  const [pageTab, setPageTab] = useState<PageTab>("ordenes");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<ViewTab>("todas");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [technicianFilter, setTechnicianFilter] = useState("ALL");
-  const [technicians, setTechnicians] = useState<{ id: string; name: string }[]>([]);
 
-  const fetchOrders = useCallback(async () => {
-    const res = await fetch(`/api/work-orders?storeId=${storeId}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    setOrders(data);
-  }, [storeId]);
-
-  useEffect(() => {
-    setLoading(true);
-    fetchOrders().finally(() => setLoading(false));
-  }, [fetchOrders]);
-
-  useEffect(() => {
-    async function fetchTechnicians() {
-      const res = await fetch(`/api/users?storeId=${storeId}`);
-      if (res.ok) setTechnicians(await res.json());
-    }
-    fetchTechnicians();
-  }, [storeId]);
+  const { data: orders = [], isLoading: loading } = useSWR<WorkOrder[]>(`/api/work-orders?storeId=${storeId}&branchId=${branchId}`);
+  const { data: technicians = [] } = useSWR<{ id: string; name: string }[]>(`/api/users?storeId=${storeId}`);
 
   const filtered = orders.filter((o) => {
     // Tab filter
@@ -78,18 +64,29 @@ export default function OrdenesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Órdenes de Trabajo</h1>
-        <Link href="/dashboard/ordenes/create">
-          <Button>
-            <LuPlus className="h-4 w-4 mr-1" />
-            Nueva Orden
-          </Button>
-        </Link>
+      {/* Page-level tabs */}
+      <div className="flex items-center gap-2 sm:gap-4 border-b border-border">
+        {(["ordenes", "servicios"] as PageTab[]).map((pt) => (
+          <button
+            key={pt}
+            onClick={() => setPageTab(pt)}
+            className={cn(
+              "pb-2 text-sm font-medium border-b-2 transition-colors capitalize",
+              pageTab === pt
+                ? "border-neutral-900 text-neutral-900"
+                : "border-transparent text-neutral-500 hover:text-neutral-700"
+            )}
+          >
+            {pt === "ordenes" ? "Órdenes" : "Servicios"}
+          </button>
+        ))}
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-4 border-b border-border">
+      {pageTab === "servicios" && <ServicesPanel />}
+
+      {pageTab === "ordenes" && <>
+      {/* View sub-tabs */}
+      <div className="flex items-center gap-2 sm:gap-4 border-b border-border">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -122,7 +119,7 @@ export default function OrdenesPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1 max-w-full sm:max-w-sm">
           <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
           <Input
             placeholder="Buscar..."
@@ -138,6 +135,14 @@ export default function OrdenesPage() {
           onTechnicianChange={setTechnicianFilter}
           technicians={technicians}
         />
+        <div className="ml-auto">
+          <Link href="/dashboard/ordenes/create" className={isReadOnly ? "pointer-events-none" : ""}>
+            <Button disabled={isReadOnly}>
+              <LuPlus className="h-4 w-4 mr-1" />
+              Nueva Orden
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {loading ? (
@@ -155,6 +160,7 @@ export default function OrdenesPage() {
       ) : (
         <OrderTable orders={filtered} />
       )}
+      </>}
     </div>
   );
 }

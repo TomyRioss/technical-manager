@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { LuCamera, LuX } from "react-icons/lu";
@@ -10,12 +10,22 @@ interface DevicePhotosInputProps {
   onChange: (photos: File[]) => void;
 }
 
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+
 export function DevicePhotosInput({ photos, onChange }: DevicePhotosInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
   function handleFiles(files: FileList | null) {
     if (!files) return;
-    const newPhotos = [...photos, ...Array.from(files)];
+    const fileArray = Array.from(files);
+    const invalidFiles = fileArray.filter(f => !ALLOWED_TYPES.includes(f.type));
+    if (invalidFiles.length > 0) {
+      setError("Solo se permiten imágenes (JPG, PNG, WebP, HEIC)");
+      return;
+    }
+    setError(null);
+    const newPhotos = [...photos, ...fileArray];
     onChange(newPhotos);
   }
 
@@ -66,6 +76,8 @@ export function DevicePhotosInput({ photos, onChange }: DevicePhotosInputProps) 
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
       />
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   );
 }

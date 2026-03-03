@@ -13,11 +13,11 @@ interface UnretrievedOrder {
 }
 
 export function AlertsList() {
-  const { storeId } = useDashboard();
+  const { storeId, branchId } = useDashboard();
   const [unretrieved, setUnretrieved] = useState<UnretrievedOrder[]>([]);
 
   const fetchUnretrieved = useCallback(async () => {
-    const res = await fetch(`/api/work-orders?storeId=${storeId}&status=LISTO_PARA_RETIRAR`);
+    const res = await fetch(`/api/work-orders?storeId=${storeId}&branchId=${branchId}&status=LISTO_PARA_RETIRAR`);
     if (!res.ok) return;
     const orders = await res.json();
 
@@ -38,7 +38,7 @@ export function AlertsList() {
       .sort((a: UnretrievedOrder, b: UnretrievedOrder) => b.daysReady - a.daysReady);
 
     setUnretrieved(alerts);
-  }, [storeId]);
+  }, [storeId, branchId]);
 
   useEffect(() => {
     fetchUnretrieved();

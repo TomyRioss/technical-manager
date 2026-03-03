@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppMessage, buildStatusChangeMessage } from "@/lib/whatsapp";
+import { checkReadOnly } from "@/lib/plan-guard";
 
 export async function PUT(
   req: NextRequest,
@@ -16,6 +17,12 @@ export async function PUT(
         { error: "status y changedById son requeridos" },
         { status: 400 }
       );
+    }
+
+    const existingOrder = await prisma.workOrder.findUnique({ where: { id }, select: { storeId: true } });
+    if (existingOrder) {
+      const guard = await checkReadOnly(existingOrder.storeId);
+      if (guard) return guard;
     }
 
     const order = await prisma.workOrder.findUnique({
@@ -115,7 +122,13 @@ export async function PUT(
     }
 
     return NextResponse.json(updatedOrder);
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("PUT /api/work-orders/[id]/status error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al actualizar estado de la orden" }, { status: 500 });
   }
 }

@@ -16,16 +16,16 @@ interface StatsData {
 }
 
 export default function EstadisticasPage() {
-  const { storeId } = useDashboard();
+  const { storeId, branchId } = useDashboard();
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/stats/business?storeId=${storeId}`);
+    const res = await fetch(`/api/stats/business?storeId=${storeId}&branchId=${branchId}`);
     if (res.ok) setData(await res.json());
     setLoading(false);
-  }, [storeId]);
+  }, [storeId, branchId]);
 
   useEffect(() => {
     fetchData();
@@ -36,8 +36,6 @@ export default function EstadisticasPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Estadísticas</h1>
-
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">

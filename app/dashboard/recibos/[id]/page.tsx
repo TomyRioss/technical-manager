@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useDashboard } from "@/contexts/dashboard-context";
 import { Button } from "@/components/ui/button";
@@ -13,15 +14,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { LuArrowLeft } from "react-icons/lu";
+import { LuArrowLeft, LuPrinter } from "react-icons/lu";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
+import { ReceiptPrintModal } from "@/components/receipts/receipt-print-modal";
 
 export default function ReceiptDetailPage() {
   const params = useParams();
   const id = params.id as string;
-  const { getReceipt } = useDashboard();
+  const { getReceipt, storeId, storeName, branchName } = useDashboard();
   const receipt = getReceipt(id);
+  const [printOpen, setPrintOpen] = useState(false);
 
   if (!receipt) {
     return (
@@ -45,16 +48,33 @@ export default function ReceiptDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/dashboard/recibos">
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <LuArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <h1 className="text-lg font-semibold text-neutral-900">
-          Recibo {receipt.receiptNumber}
-        </h1>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard/recibos">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <LuArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <h1 className="text-lg font-semibold text-neutral-900">
+            Recibo {receipt.receiptNumber}
+          </h1>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setPrintOpen(true)}>
+          <LuPrinter className="h-4 w-4 mr-2" />
+          Imprimir
+        </Button>
       </div>
+
+      {printOpen && (
+        <ReceiptPrintModal
+          open={printOpen}
+          onClose={() => setPrintOpen(false)}
+          receipt={receipt}
+          storeName={storeName}
+          branchName={branchName}
+          storeId={storeId}
+        />
+      )}
 
       <div className="w-full space-y-4 text-sm">
         <div className="grid grid-cols-2 gap-2">

@@ -8,10 +8,21 @@ import {
   planHasFeature,
   getMinimumPlanForFeature,
   PLAN_FEATURES,
+  isReadOnlyPlan,
 } from "@/lib/store-plans";
 
 export function useStorePlan() {
-  const { storePlan } = useDashboard();
+  const { storePlan, planExpiresAt } = useDashboard();
+
+  const isReadOnly = useMemo(() => isReadOnlyPlan(storePlan), [storePlan]);
+
+  const daysRemaining = useMemo(() => {
+    if (storePlan !== "DEMO" || !planExpiresAt) return null;
+    const expires = new Date(planExpiresAt);
+    const now = new Date();
+    const diff = Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, diff);
+  }, [storePlan, planExpiresAt]);
 
   const hasFeature = useMemo(() => {
     return (feature: StoreFeature): boolean => {
@@ -35,5 +46,7 @@ export function useStorePlan() {
     hasFeature,
     getUpgradePlan,
     availableFeatures,
+    isReadOnly,
+    daysRemaining,
   };
 }

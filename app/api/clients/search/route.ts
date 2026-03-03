@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET(req: NextRequest) {
   try {
     const storeId = req.nextUrl.searchParams.get("storeId");
+    const branchId = req.nextUrl.searchParams.get("branchId");
     const q = req.nextUrl.searchParams.get("q");
 
     if (!storeId) {
@@ -14,16 +15,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json([]);
     }
 
+    const where: Record<string, unknown> = {
+      storeId,
+      isActive: true,
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { phone: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+      ],
+    };
+    if (branchId) where.branchId = branchId;
+
     const clients = await prisma.client.findMany({
-      where: {
-        storeId,
-        isActive: true,
-        OR: [
-          { name: { contains: q, mode: "insensitive" } },
-          { phone: { contains: q, mode: "insensitive" } },
-          { email: { contains: q, mode: "insensitive" } },
-        ],
-      },
+      where,
       select: {
         id: true,
         name: true,
@@ -36,7 +40,13 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(clients);
-  } catch {
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("GET /api/clients/search error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2002") return NextResponse.json({ error: "Ya existe un registro con esos datos" }, { status: 409 });
+      if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al buscar clientes" }, { status: 500 });
   }
 }

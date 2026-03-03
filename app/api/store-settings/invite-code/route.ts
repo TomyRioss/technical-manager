@@ -48,6 +48,6 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json(settings);
   } catch (error) {
     console.error("Error generating invite code:", error);
-    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+    return NextResponse.json({ error: "Error al gestionar código de invitación" }, { status: 500 });
   }
 }

@@ -36,7 +36,9 @@ export function StepLocation({
           onStoreAddressChange(data.address);
         }
       }
-    } catch {}
+    } catch (error: unknown) {
+      console.error("Error al resolver dirección de Maps:", error);
+    }
     setResolving(false);
   }
 
