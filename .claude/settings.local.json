@@ -35,7 +35,8 @@
       "WebFetch(domain:www.designmonks.co)",
       "Bash(head:*)",
       "Bash(find:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(cd:*)"
     ]
   }
 }

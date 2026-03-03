@@ -88,6 +88,7 @@ function mapItemToProduct(i: Record<string, unknown>): Product {
     imageUrl: (i.imageUrl as string) || undefined,
     categoryId: cat?.id || undefined,
     categoryName: cat?.name || undefined,
+    createdAt: (i.createdAt as string) || undefined,
   };
 }
 

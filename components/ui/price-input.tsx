@@ -15,7 +15,9 @@ interface PriceInputProps {
 
 function formatForDisplay(value: number): string {
   if (value === 0) return "";
-  return value.toLocaleString("es-AR");
+  const [int, dec] = value.toFixed(2).split(".");
+  const intFormatted = int.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${intFormatted},${dec}`;
 }
 
 function PriceInput({
@@ -37,7 +39,7 @@ function PriceInput({
     const raw = e.target.value.replace(/\./g, "").replace(/,/g, "");
     const num = parseFloat(raw) || 0;
     const finalValue = min !== undefined && num < min ? min : num;
-    setDisplay(finalValue === 0 ? "" : finalValue.toLocaleString("es-AR"));
+    setDisplay(finalValue === 0 ? "" : formatForDisplay(finalValue));
     onChange(finalValue);
   }
 

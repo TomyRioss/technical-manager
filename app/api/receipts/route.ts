@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const where: Record<string, unknown> = { storeId, isActive: !archived };
-    if (branchId) where.branchId = branchId;
+    if (branchId && branchId !== "null" && branchId !== "undefined") where.branchId = branchId;
 
     const receipts = await prisma.receipt.findMany({
       where,

@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatPrice } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -47,7 +48,7 @@ export function TechnicianStats({ data }: TechnicianStatsProps) {
                   <TableCell className="text-right">{t.total}</TableCell>
                   <TableCell className="text-right">{t.delivered}</TableCell>
                   <TableCell className="text-right">
-                    ${t.revenue.toLocaleString("es-AR")}
+                    ${formatPrice(t.revenue)}
                   </TableCell>
                 </TableRow>
               ))}

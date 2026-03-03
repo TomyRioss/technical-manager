@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     }
 
     const where: Record<string, unknown> = { storeId, isActive: true };
-    if (branchId) where.branchId = branchId;
+    if (branchId && branchId !== "null" && branchId !== "undefined") where.branchId = branchId;
 
     const clients = await prisma.client.findMany({
       where,

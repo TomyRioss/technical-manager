@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
         { email: { contains: q, mode: "insensitive" } },
       ],
     };
-    if (branchId) where.branchId = branchId;
+    if (branchId && branchId !== "null" && branchId !== "undefined") where.branchId = branchId;
 
     const clients = await prisma.client.findMany({
       where,

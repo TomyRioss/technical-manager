@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       isActive: true,
       isDeleted: false,
     };
-    if (branchId) where.branchId = branchId;
+    if (branchId && branchId !== "null" && branchId !== "undefined") where.branchId = branchId;
 
     const existingItems = await prisma.item.findMany({
       where,

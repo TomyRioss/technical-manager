@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatPrice } from "@/lib/utils";
 import type { Product } from "@/types/product";
-import { LuPlus, LuCheck, LuX } from "react-icons/lu";
+import { LuPlus, LuCheck, LuX, LuArrowUpDown } from "react-icons/lu";
 
 function isServiceCategory(categoryName: string | undefined): boolean {
   if (!categoryName) return false;
@@ -22,6 +22,7 @@ interface PosProductGridProps {
 export function PosProductGrid({ products, onAddProduct, onAddService }: PosProductGridProps) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"name" | "createdAt" | "stock" | "price">("name");
   const [feedback, setFeedback] = useState<Record<string, 'success' | 'error'>>({});
 
   function handleCardClick(product: Product, isService: boolean) {
@@ -48,21 +49,48 @@ export function PosProductGrid({ products, onAddProduct, onAddService }: PosProd
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return products.filter((p) => {
-      if (!p.active) return false;
-      if (q && !p.name.toLowerCase().includes(q) && !p.sku.toLowerCase().includes(q)) return false;
+    const result = products.filter((p) => {
+if (q && !p.name.toLowerCase().includes(q) && !p.sku.toLowerCase().includes(q)) return false;
       if (categoryFilter !== "all" && p.categoryId !== categoryFilter) return false;
       return true;
     });
-  }, [products, search, categoryFilter]);
+
+    result.sort((a, b) => {
+      if (sortBy === "name") return a.name.localeCompare(b.name);
+      if (sortBy === "stock") return b.stock - a.stock;
+      if (sortBy === "price") return b.price - a.price;
+      if (sortBy === "createdAt") {
+        return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
+      }
+      return 0;
+    });
+
+    return result;
+  }, [products, search, categoryFilter, sortBy]);
 
   return (
     <div className="flex flex-col h-full gap-3">
-      <Input
-        placeholder="Buscar por nombre o SKU..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div className="flex gap-2">
+        <Input
+          placeholder="Buscar por nombre o SKU..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1"
+        />
+        <div className="relative">
+          <LuArrowUpDown className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400 pointer-events-none" />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="h-9 pl-7 pr-2 text-xs border border-neutral-200 rounded-md bg-white text-neutral-700 appearance-none focus:outline-none focus:ring-1 focus:ring-neutral-400"
+          >
+            <option value="name">Nombre</option>
+            <option value="createdAt">Más recientes</option>
+            <option value="stock">Stock</option>
+            <option value="price">Precio</option>
+          </select>
+        </div>
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <button
@@ -120,6 +148,14 @@ export function PosProductGrid({ products, onAddProduct, onAddService }: PosProd
                   </div>
                   <p className="text-base font-semibold text-neutral-900">{formatPrice(product.price)}</p>
                   <p className="text-xs text-neutral-500">Stock: {product.stock}</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {(!product.price || product.price <= 0) && (
+                      <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-600 bg-amber-50">Sin precio de venta</Badge>
+                    )}
+                    {!isService && product.stock <= 0 && (
+                      <Badge variant="outline" className="text-[10px] border-red-400 text-red-600 bg-red-50">Sin stock</Badge>
+                    )}
+                  </div>
                   {product.categoryName && (
                     <p className="text-xs text-neutral-400 mt-0.5 truncate">{product.categoryName}</p>
                   )}

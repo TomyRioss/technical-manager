@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatPrice } from "@/lib/utils";
 
 interface MonthData {
   month: string;
@@ -30,7 +31,7 @@ export function RepairsByMonth({ data }: RepairsByMonthProps) {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-neutral-600">{d.month}</span>
                   <span className="font-medium">
-                    {d.count} — ${d.revenue.toLocaleString("es-AR")}
+                    {d.count} — ${formatPrice(d.revenue)}
                   </span>
                 </div>
                 <div className="h-2 rounded-full bg-neutral-100">

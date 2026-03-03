@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LuPaintbrush, LuSmartphone, LuPercent, LuTags, LuUsers, LuDownload, LuBuilding2 } from "react-icons/lu";
+import { LuPaintbrush, LuSmartphone, LuPercent, LuTags, LuUsers, LuDownload, LuBuilding2, LuShield } from "react-icons/lu";
 
 const configTabs = [
   { label: "General", href: "/dashboard/configuracion", icon: LuPaintbrush },
@@ -13,6 +13,7 @@ const configTabs = [
   { label: "Dispositivos", href: "/dashboard/configuracion/dispositivos", icon: LuSmartphone },
   { label: "Comisiones", href: "/dashboard/configuracion/comisiones", icon: LuPercent },
   { label: "Exportar", href: "/dashboard/configuracion/exportar", icon: LuDownload },
+  { label: "Seguridad", href: "/dashboard/configuracion/seguridad", icon: LuShield },
 ];
 
 export default function ConfiguracionLayout({ children }: { children: React.ReactNode }) {

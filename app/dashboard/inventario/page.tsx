@@ -424,30 +424,48 @@ export default function InventarioPage() {
                   </TableCell>
                   <TableCell className="text-right hidden md:table-cell">
                     {isReadOnly ? (product.costPrice != null ? `$${formatPrice(product.costPrice)}` : "—") : (
-                      <input
-                        type="number"
-                        min={0}
-                        className="bg-neutral-100 border border-neutral-200 rounded px-1.5 hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm text-right w-full"
-                        value={editingField?.id === product.id && editingField.field === 'costPrice' ? editingField.value : String(product.costPrice ?? '')}
-                        onFocus={() => setEditingField({ id: product.id, field: 'costPrice', value: String(product.costPrice ?? '') })}
-                        onChange={(e) => setEditingField({ id: product.id, field: 'costPrice', value: e.target.value })}
-                        onBlur={() => handleFieldSave(product)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingField(null); }}
-                      />
+                      editingField?.id === product.id && editingField.field === 'costPrice' ? (
+                        <input
+                          type="number"
+                          min={0}
+                          autoFocus
+                          className="bg-neutral-100 border border-neutral-200 rounded px-1.5 hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm text-right w-full"
+                          value={editingField.value}
+                          onChange={(e) => setEditingField({ id: product.id, field: 'costPrice', value: e.target.value })}
+                          onBlur={() => handleFieldSave(product)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingField(null); }}
+                        />
+                      ) : (
+                        <span
+                          className="cursor-text text-sm"
+                          onClick={() => setEditingField({ id: product.id, field: 'costPrice', value: String(product.costPrice ?? '') })}
+                        >
+                          {product.costPrice != null ? `$${formatPrice(product.costPrice)}` : "—"}
+                        </span>
+                      )
                     )}
                   </TableCell>
                   <TableCell className="text-right">
                     {isReadOnly ? (product.price > 0 ? `$${formatPrice(product.price)}` : "—") : (
-                      <input
-                        type="number"
-                        min={0}
-                        className="bg-neutral-100 border border-neutral-200 rounded px-1.5 hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm text-right w-full"
-                        value={editingField?.id === product.id && editingField.field === 'price' ? editingField.value : String(product.price ?? '')}
-                        onFocus={() => setEditingField({ id: product.id, field: 'price', value: String(product.price ?? '') })}
-                        onChange={(e) => setEditingField({ id: product.id, field: 'price', value: e.target.value })}
-                        onBlur={() => handleFieldSave(product)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingField(null); }}
-                      />
+                      editingField?.id === product.id && editingField.field === 'price' ? (
+                        <input
+                          type="number"
+                          min={0}
+                          autoFocus
+                          className="bg-neutral-100 border border-neutral-200 rounded px-1.5 hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm text-right w-full"
+                          value={editingField.value}
+                          onChange={(e) => setEditingField({ id: product.id, field: 'price', value: e.target.value })}
+                          onBlur={() => handleFieldSave(product)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingField(null); }}
+                        />
+                      ) : (
+                        <span
+                          className="cursor-text text-sm"
+                          onClick={() => setEditingField({ id: product.id, field: 'price', value: String(product.price ?? '') })}
+                        >
+                          {product.price > 0 ? `$${formatPrice(product.price)}` : "—"}
+                        </span>
+                      )
                     )}
                   </TableCell>
                   <TableCell className="text-right">

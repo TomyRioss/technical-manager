@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
         },
       ],
     };
-    if (branchId) where.branchId = branchId;
+    if (branchId && branchId !== "null" && branchId !== "undefined") where.branchId = branchId;
 
     const items = await prisma.item.findMany({
       where,

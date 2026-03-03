@@ -7,6 +7,7 @@ import { CommonFaults } from "@/components/stats/common-faults";
 import { TechnicianStats } from "@/components/stats/technician-stats";
 import { useDashboard } from "@/contexts/dashboard-context";
 import { LuWrench, LuCheck, LuDollarSign } from "react-icons/lu";
+import { formatPrice } from "@/lib/utils";
 
 interface StatsData {
   summary: { totalOrders: number; deliveredOrders: number; totalRevenue: number };
@@ -62,7 +63,7 @@ export default function EstadisticasPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              ${data.summary.totalRevenue.toLocaleString("es-AR")}
+              ${formatPrice(data.summary.totalRevenue)}
             </p>
           </CardContent>
         </Card>

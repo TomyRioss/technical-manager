@@ -20,6 +20,7 @@ export default function PosPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [commissionRate, setCommissionRate] = useState(0);
+  const [mobileView, setMobileView] = useState<"products" | "cart">("products");
   const [workOrderModalProduct, setWorkOrderModalProduct] = useState<Product | null>(null);
   const [checking, setChecking] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
@@ -168,16 +169,73 @@ export default function PosPage() {
     );
   }
 
+  const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0);
+
   return (
     <>
-    <div className="flex flex-col gap-3 h-[calc(100vh-8rem)]">
+    {/* Mobile/Tablet layout */}
+    <div className="flex flex-col h-dvh lg:hidden">
+      {mobileView === "products" ? (
+        <>
+          <div className="px-4 pt-4 pb-2">
+            <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-800 transition-colors">
+              <LuArrowLeft className="h-4 w-4" />
+              Dashboard
+            </Link>
+          </div>
+          <div className="flex-1 overflow-hidden px-4 pb-20">
+            <PosProductGrid
+              products={products}
+              onAddProduct={(product) => addToCart(product)}
+              onAddService={(product) => setWorkOrderModalProduct(product)}
+            />
+          </div>
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-neutral-200">
+            <Button className="w-full" onClick={() => setMobileView("cart")}>
+              Ver carrito{cartCount > 0 ? ` (${cartCount})` : ""}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="px-4 pt-4 pb-2">
+            <button
+              onClick={() => setMobileView("products")}
+              className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-800 transition-colors"
+            >
+              <LuArrowLeft className="h-4 w-4" />
+              Productos
+            </button>
+          </div>
+          <div className="flex-1 overflow-hidden px-4 pb-4">
+            <div className="h-full border border-neutral-200 rounded-lg p-4 overflow-hidden flex flex-col">
+              <PosCart
+                items={cart}
+                paymentMethod={paymentMethod}
+                commissionRate={commissionRate}
+                onPaymentMethodChange={handlePaymentMethodChange}
+                onCommissionRateChange={setCommissionRate}
+                onUpdateQty={updateQty}
+                onRemove={removeFromCart}
+                onCheckout={handleCheckout}
+                checking={checking}
+                error={checkoutError}
+              />
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+
+    {/* Desktop layout */}
+    <div className="hidden lg:flex flex-col gap-3 h-[calc(100vh-8rem)]">
       <div>
         <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-800 transition-colors">
           <LuArrowLeft className="h-4 w-4" />
           Dashboard
         </Link>
       </div>
-    <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0">
+    <div className="flex flex-row gap-4 flex-1 min-h-0">
       <div className="flex-1 min-w-0 overflow-hidden">
         <PosProductGrid
           products={products}
@@ -186,7 +244,7 @@ export default function PosPage() {
         />
       </div>
 
-      <div className="w-full lg:w-80 xl:w-96 border border-neutral-200 rounded-lg p-4 overflow-hidden flex flex-col shrink-0">
+      <div className="w-80 xl:w-96 border border-neutral-200 rounded-lg p-4 overflow-hidden flex flex-col shrink-0">
         <PosCart
           items={cart}
           paymentMethod={paymentMethod}
@@ -200,21 +258,21 @@ export default function PosPage() {
           error={checkoutError}
         />
       </div>
+    </div>
+    </div>
 
-      {workOrderModalProduct && (
-        <PosWorkOrderModal
-          product={workOrderModalProduct}
-          storeId={storeId}
-          branchId={branchId}
-          onConfirm={(workOrderData) => {
-            addToCart(workOrderModalProduct, workOrderData);
-            setWorkOrderModalProduct(null);
-          }}
-          onCancel={() => setWorkOrderModalProduct(null)}
-        />
-      )}
-    </div>
-    </div>
+    {workOrderModalProduct && (
+      <PosWorkOrderModal
+        product={workOrderModalProduct}
+        storeId={storeId}
+        branchId={branchId}
+        onConfirm={(workOrderData) => {
+          addToCart(workOrderModalProduct, workOrderData);
+          setWorkOrderModalProduct(null);
+        }}
+        onCancel={() => setWorkOrderModalProduct(null)}
+      />
+    )}
 
     {/* Modal de éxito */}
     <Dialog open={!!successReceipt && !showPrintModal} onOpenChange={() => {}}>

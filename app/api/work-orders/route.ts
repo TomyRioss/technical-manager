@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const technicianId = req.nextUrl.searchParams.get("technicianId");
 
     const where: Record<string, unknown> = { storeId, isActive: true };
-    if (branchId) where.branchId = branchId;
+    if (branchId && branchId !== "null" && branchId !== "undefined") where.branchId = branchId;
     if (status) where.status = status;
     if (technicianId) where.technicianId = technicianId;
 
