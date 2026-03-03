@@ -50,7 +50,7 @@ function parseCSV(text: string): ClientRow[] {
     const values = line.split(",").map((v) => v.trim());
     const row: Record<string, string> = {};
     headers.forEach((h, i) => { row[h] = values[i] ?? ""; });
-    return row as ClientRow;
+    return row as unknown as ClientRow;
   }).filter((r) => r.Nombre);
 }
 

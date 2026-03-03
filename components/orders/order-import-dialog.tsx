@@ -53,7 +53,7 @@ function parseCSV(text: string): OrderRow[] {
     const values = line.split(",").map((v) => v.trim());
     const row: Record<string, string> = {};
     headers.forEach((h, i) => { row[h] = values[i] ?? ""; });
-    return row as OrderRow;
+    return row as unknown as OrderRow;
   }).filter((r) => r.Equipo && r.Falla && r.Cliente);
 }
 

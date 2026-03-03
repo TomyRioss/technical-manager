@@ -37,8 +37,8 @@ export async function POST(req: NextRequest) {
     const guard = await checkReadOnly(storeId);
     if (guard) return guard;
 
-    // Need a userId for the receipt; use any admin of the store
-    const storeUser = await prisma.storeUser.findFirst({ where: { storeId } });
+    // Need a userId for the receipt; use any user of the store
+    const storeUser = await prisma.user.findFirst({ where: { storeId } });
     if (!storeUser) {
       return NextResponse.json({ error: "No se encontró un usuario de la tienda" }, { status: 400 });
     }
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       const total = row.Total ? parseFloat(String(row.Total)) : subtotal - commissionAmount;
 
       await prisma.receipt.upsert({
-        where: { receiptNumber_storeId: { receiptNumber, storeId } },
+        where: { storeId_receiptNumber: { storeId, receiptNumber } },
         update: { status, paymentMethod, subtotal, commissionAmount, total },
         create: {
           receiptNumber,
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
           total,
           storeId,
           branchId,
-          userId: storeUser.userId,
+          userId: storeUser.id,
         },
       });
 

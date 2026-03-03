@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useDashboard } from "@/contexts/dashboard-context";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { LuPlus, LuPencil, LuTrash2, LuSearch, LuUpload, LuX, LuTag, LuChevronLeft, LuChevronRight, LuArrowUp, LuArrowDown, LuArrowUpDown, LuFilter } from "react-icons/lu";
 import { Loader2 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { PriceInput } from "@/components/ui/price-input";
 import { useStorePlan } from "@/hooks/use-store-plan";
 import { BulkImportDialog } from "@/components/inventario/bulk-import-dialog";
 import { CategorySelect } from "@/components/ui/category-select";
@@ -35,6 +36,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import type { Product } from "@/types/product";
+import type { Category } from "@/types/category";
 
 function getMissingData(product: Product): string[] {
   const missing: string[] = [];
@@ -54,6 +56,7 @@ export default function InventarioPage() {
   const [search, setSearch] = useState("");
   const [editingStock, setEditingStock] = useState<{ id: string; value: string } | null>(null);
   const [editingField, setEditingField] = useState<{ id: string; field: 'name' | 'sku' | 'costPrice' | 'price'; value: string } | null>(null);
+  const [editingPriceValue, setEditingPriceValue] = useState<number>(0);
   const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
@@ -62,10 +65,18 @@ export default function InventarioPage() {
   const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortKey, setSortKey] = useState<"name" | "price" | "stock" | "active" | null>(null);
+  const [sortKey, setSortKey] = useState<"name" | "price" | "costPrice" | "stock" | "active" | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    if (!storeId) return;
+    fetch(`/api/categories?storeId=${storeId}`)
+      .then((r) => r.ok ? r.json() : [])
+      .then(setCategories);
+  }, [storeId]);
 
   const availableCategories = Array.from(
     new Set(products.map((p) => p.categoryName).filter(Boolean))
@@ -91,6 +102,7 @@ export default function InventarioPage() {
       const dir = sortDir === "asc" ? 1 : -1;
       if (sortKey === "name") return a.name.localeCompare(b.name) * dir;
       if (sortKey === "price") return (a.price - b.price) * dir;
+      if (sortKey === "costPrice") return ((a.costPrice ?? 0) - (b.costPrice ?? 0)) * dir;
       if (sortKey === "stock") return (a.stock - b.stock) * dir;
       if (sortKey === "active") return (Number(a.active) - Number(b.active)) * dir;
       return 0;
@@ -137,7 +149,7 @@ export default function InventarioPage() {
     setSelectedIds(new Set());
   }
 
-  function handleSort(key: "name" | "price" | "stock" | "active") {
+  function handleSort(key: "name" | "price" | "costPrice" | "stock" | "active") {
     if (sortKey !== key) {
       setSortKey(key);
       setSortDir("asc");
@@ -169,7 +181,7 @@ export default function InventarioPage() {
     setCurrentPage(1);
   }
 
-  function SortIcon({ column }: { column: "name" | "price" | "stock" | "active" }) {
+  function SortIcon({ column }: { column: "name" | "price" | "costPrice" | "stock" | "active" }) {
     if (sortKey !== column) return <LuArrowUpDown className="ml-1 h-3.5 w-3.5 text-neutral-400" />;
     if (sortDir === "asc") return <LuArrowUp className="ml-1 h-3.5 w-3.5" />;
     return <LuArrowDown className="ml-1 h-3.5 w-3.5" />;
@@ -351,16 +363,18 @@ export default function InventarioPage() {
                 <TableHead className="cursor-pointer select-none" onClick={() => handleSort("name")}>
                   <span className="inline-flex items-center">Nombre<SortIcon column="name" /></span>
                 </TableHead>
-                <TableHead className="hidden md:table-cell">Categoría</TableHead>
-                <TableHead className="hidden md:table-cell">SKU</TableHead>
-                <TableHead className="text-right hidden md:table-cell">Precio Compra</TableHead>
-                <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("price")}>
+                <TableHead className="hidden md:table-cell w-36">Categoría</TableHead>
+                <TableHead className="hidden md:table-cell w-28">SKU</TableHead>
+                <TableHead className="text-right hidden md:table-cell w-32 cursor-pointer select-none" onClick={() => handleSort("costPrice")}>
+                  <span className="inline-flex items-center justify-end w-full">Precio Compra<SortIcon column="costPrice" /></span>
+                </TableHead>
+                <TableHead className="text-right cursor-pointer select-none w-32" onClick={() => handleSort("price")}>
                   <span className="inline-flex items-center justify-end w-full">Precio Venta<SortIcon column="price" /></span>
                 </TableHead>
-                <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("stock")}>
+                <TableHead className="text-right cursor-pointer select-none w-20" onClick={() => handleSort("stock")}>
                   <span className="inline-flex items-center justify-end w-full">Stock<SortIcon column="stock" /></span>
                 </TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => handleSort("active")}>
+                <TableHead className="cursor-pointer select-none w-24" onClick={() => handleSort("active")}>
                   <span className="inline-flex items-center">Estado<SortIcon column="active" /></span>
                 </TableHead>
                 <TableHead className="w-20" />
@@ -408,7 +422,18 @@ export default function InventarioPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-neutral-500 hidden md:table-cell">
-                    {product.categoryName || "—"}
+                    {isReadOnly ? (product.categoryName || "—") : (
+                      <select
+                        value={product.categoryId || ""}
+                        onChange={(e) => updateProductCategory(product.id, e.target.value || null)}
+                        className="bg-neutral-100 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm w-full"
+                      >
+                        <option value="">Sin categoría</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
+                      </select>
+                    )}
                   </TableCell>
                   <TableCell className="text-neutral-500 hidden md:table-cell">
                     {isReadOnly ? (product.sku || "—") : (
@@ -424,48 +449,22 @@ export default function InventarioPage() {
                   </TableCell>
                   <TableCell className="text-right hidden md:table-cell">
                     {isReadOnly ? (product.costPrice != null ? `$${formatPrice(product.costPrice)}` : "—") : (
-                      editingField?.id === product.id && editingField.field === 'costPrice' ? (
-                        <input
-                          type="number"
-                          min={0}
-                          autoFocus
-                          className="bg-neutral-100 border border-neutral-200 rounded px-1.5 hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm text-right w-full"
-                          value={editingField.value}
-                          onChange={(e) => setEditingField({ id: product.id, field: 'costPrice', value: e.target.value })}
-                          onBlur={() => handleFieldSave(product)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingField(null); }}
-                        />
-                      ) : (
-                        <span
-                          className="cursor-text text-sm"
-                          onClick={() => setEditingField({ id: product.id, field: 'costPrice', value: String(product.costPrice ?? '') })}
-                        >
-                          {product.costPrice != null ? `$${formatPrice(product.costPrice)}` : "—"}
-                        </span>
-                      )
+                      <PriceInput
+                        value={editingField?.id === product.id && editingField.field === 'costPrice' ? editingPriceValue : (product.costPrice ?? 0)}
+                        className="h-auto py-0.5 px-1.5 bg-neutral-100 border border-neutral-200 rounded hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm text-right w-full shadow-none"
+                        onChange={(n) => { setEditingField({ id: product.id, field: 'costPrice', value: String(n) }); setEditingPriceValue(n); }}
+                        onBlur={() => handleFieldSave(product)}
+                      />
                     )}
                   </TableCell>
                   <TableCell className="text-right">
                     {isReadOnly ? (product.price > 0 ? `$${formatPrice(product.price)}` : "—") : (
-                      editingField?.id === product.id && editingField.field === 'price' ? (
-                        <input
-                          type="number"
-                          min={0}
-                          autoFocus
-                          className="bg-neutral-100 border border-neutral-200 rounded px-1.5 hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm text-right w-full"
-                          value={editingField.value}
-                          onChange={(e) => setEditingField({ id: product.id, field: 'price', value: e.target.value })}
-                          onBlur={() => handleFieldSave(product)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingField(null); }}
-                        />
-                      ) : (
-                        <span
-                          className="cursor-text text-sm"
-                          onClick={() => setEditingField({ id: product.id, field: 'price', value: String(product.price ?? '') })}
-                        >
-                          {product.price > 0 ? `$${formatPrice(product.price)}` : "—"}
-                        </span>
-                      )
+                      <PriceInput
+                        value={editingField?.id === product.id && editingField.field === 'price' ? editingPriceValue : (product.price ?? 0)}
+                        className="h-auto py-0.5 px-1.5 bg-neutral-100 border border-neutral-200 rounded hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm text-right w-full shadow-none"
+                        onChange={(n) => { setEditingField({ id: product.id, field: 'price', value: String(n) }); setEditingPriceValue(n); }}
+                        onBlur={() => handleFieldSave(product)}
+                      />
                     )}
                   </TableCell>
                   <TableCell className="text-right">

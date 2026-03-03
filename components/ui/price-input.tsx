@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 interface PriceInputProps {
   value: number;
   onChange: (value: number) => void;
+  onBlur?: () => void;
   placeholder?: string;
   id?: string;
   className?: string;
@@ -23,6 +24,7 @@ function formatForDisplay(value: number): string {
 function PriceInput({
   value,
   onChange,
+  onBlur,
   placeholder = "0",
   id,
   className,
@@ -44,15 +46,19 @@ function PriceInput({
   }
 
   return (
-    <Input
+    <input
       id={id}
       type="text"
       inputMode="numeric"
       value={display}
       onChange={handleChange}
       placeholder={placeholder}
-      className={className}
+      className={cn(
+        "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+        className
+      )}
       autoFocus={autoFocus}
+      onBlur={onBlur}
     />
   );
 }

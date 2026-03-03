@@ -53,7 +53,7 @@ function parseCSV(text: string): ReceiptRow[] {
     const values = line.split(",").map((v) => v.trim());
     const row: Record<string, string> = {};
     headers.forEach((h, i) => { row[h] = values[i] ?? ""; });
-    return row as ReceiptRow;
+    return row as unknown as ReceiptRow;
   }).filter((r) => r.Número);
 }
 

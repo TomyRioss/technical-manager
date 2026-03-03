@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
             phone,
             storeId,
             branchId,
-            tag: "REGULAR",
+            tag: "NEW",
           },
         });
       }

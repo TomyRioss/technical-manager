@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
           email,
           storeId,
           branchId,
-          tag: "REGULAR",
+          tag: "NEW",
         },
       });
 
