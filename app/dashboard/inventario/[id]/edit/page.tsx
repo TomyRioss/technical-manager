@@ -73,13 +73,14 @@ export default function EditProductPage() {
   }
 
   async function uploadImage(file: File): Promise<string | null> {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("itemId", id);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.url;
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `${id}.${ext}`;
+      const { uploadDirect } = await import("@/lib/upload-direct");
+      return await uploadDirect(file, "products", fileName);
+    } catch {
+      return null;
+    }
   }
 
   async function handleSave() {

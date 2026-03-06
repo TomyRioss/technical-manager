@@ -213,15 +213,22 @@ export default function InventarioPage() {
 
   async function handleImageUpload(productId: string, file: File) {
     setUploadingImageId(productId);
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("itemId", productId);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    if (res.ok) {
-      const data = await res.json();
-      setProductImage(productId, data.url);
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `${productId}.${ext}`;
+      const { uploadDirect } = await import("@/lib/upload-direct");
+      const url = await uploadDirect(file, "products", fileName);
+      await fetch("/api/upload/update-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: productId, url }),
+      });
+      setProductImage(productId, url);
+    } catch {
+      // error silenciado — mejorar con toast si se requiere
+    } finally {
+      setUploadingImageId(null);
     }
-    setUploadingImageId(null);
   }
 
   async function handleStockSave(product: Product) {
