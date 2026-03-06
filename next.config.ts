@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    serverBodySizeLimit: "50mb",
-  },
+
   serverExternalPackages: ["@prisma/client", "@prisma/adapter-pg", "pg"],
   turbopack: {
     resolveAlias: {
