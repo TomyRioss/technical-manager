@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, description, sku, costPrice, salePrice, stock, isActive, storeId, branchId, categoryId } = body;
+  const { name, description, sku, internalSku, costPrice, salePrice, stock, isActive, storeId, branchId, categoryId } = body;
 
   if (!name || !storeId || !branchId) {
     return NextResponse.json({ error: "name, storeId y branchId requeridos" }, { status: 400 });
@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
         name,
         description: description || null,
         sku: sku || "",
+        internalSku: internalSku || null,
         costPrice: costPrice || null,
         salePrice: salePrice || 0,
         stock: stock || 0,

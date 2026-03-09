@@ -89,6 +89,7 @@ function mapItemToProduct(i: Record<string, unknown>): Product {
     categoryId: cat?.id || undefined,
     categoryName: cat?.name || undefined,
     createdAt: (i.createdAt as string) || undefined,
+    internalSku: (i.internalSku as string) || undefined,
   };
 }
 
@@ -145,6 +146,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
         name: data.name,
         description: data.description || null,
         sku: data.sku,
+        internalSku: data.internalSku || null,
         costPrice: data.costPrice || null,
         salePrice: data.price,
         stock: data.stock,
@@ -182,6 +184,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
         name: data.name,
         description: data.description || null,
         sku: data.sku,
+        internalSku: data.internalSku || null,
         costPrice: data.costPrice || null,
         salePrice: data.price,
         stock: data.stock,

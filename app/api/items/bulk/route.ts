@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { nanoid } from "nanoid";
+import { generateSku } from "@/lib/generate-sku";
 
 interface BulkItem {
   sku: string;
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     // Generar SKU único para items sin SKU
     const itemsWithSku = items.map((item) => ({
       ...item,
-      sku: item.sku || `IMP-${nanoid(8)}`,
+      sku: item.sku || generateSku(),
     }));
 
     // Resolver categorías: buscar existentes y crear las que faltan

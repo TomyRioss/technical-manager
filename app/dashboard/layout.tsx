@@ -8,6 +8,7 @@ import { DashboardProvider } from "@/contexts/dashboard-context";
 import { SWRProvider } from "@/providers/swr-provider";
 import { clearSWRCache } from "@/lib/swr-cache";
 import { cn } from "@/lib/utils";
+import { FaWhatsapp } from "react-icons/fa";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { BranchSelector } from "@/components/branch-selector";
 import {
@@ -304,6 +305,15 @@ export default function DashboardLayout({
             <LuCircleHelp className="h-5 w-5 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Ayuda</span>
           </Link>
+          <a
+            href="https://wa.me/5491134083140"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-0 sm:gap-1.5 border-b-2 border-transparent px-2.5 sm:px-4 py-2 text-xs sm:text-sm font-medium text-green-600 hover:text-green-700 transition-colors"
+          >
+            <FaWhatsapp className="h-5 w-5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Soporte</span>
+          </a>
         </nav>}
       </header>
 

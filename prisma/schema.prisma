@@ -133,6 +133,7 @@ model User {
 model Item {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   sku         String
+  internalSku String?  @map("internal_sku")
   name        String
   description String?  @db.Text
   costPrice   Float?   @map("cost_price")

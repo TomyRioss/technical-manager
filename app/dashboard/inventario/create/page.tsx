@@ -16,21 +16,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { LuUpload } from "react-icons/lu";
-
-function generateSku(): string {
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const digits = "0123456789";
-  let sku = "";
-  for (let i = 0; i < 3; i++) sku += letters[Math.floor(Math.random() * 26)];
-  for (let i = 0; i < 6; i++) sku += digits[Math.floor(Math.random() * 10)];
-  for (let i = 0; i < 3; i++) sku += letters[Math.floor(Math.random() * 26)];
-  return sku;
-}
+import { generateSku } from "@/lib/generate-sku";
 
 const emptyProduct: Omit<Product, "id"> = {
   name: "",
   description: "",
   sku: generateSku(),
+  internalSku: "",
   costPrice: 0,
   price: 0,
   stock: 0,
@@ -48,6 +40,7 @@ export default function CreateProductPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [generatingInternalSku, setGeneratingInternalSku] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
@@ -76,6 +69,24 @@ export default function CreateProductPage() {
       return await uploadDirect(file, "products", fileName);
     } catch {
       return null;
+    }
+  }
+
+  async function handleGenerateInternalSku() {
+    if (!form.name.trim()) return;
+    setGeneratingInternalSku(true);
+    try {
+      const res = await fetch("/api/items/suggest-internal-sku", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storeId, name: form.name }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setForm((f) => ({ ...f, internalSku: data.internalSku }));
+      }
+    } finally {
+      setGeneratingInternalSku(false);
     }
   }
 
@@ -265,6 +276,27 @@ export default function CreateProductPage() {
             onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
             placeholder="ABC-001"
           />
+        </div>
+
+        {/* SKU Interno */}
+        <div className="space-y-2">
+          <Label htmlFor="internalSku">SKU Interno</Label>
+          <div className="flex gap-2">
+            <Input
+              id="internalSku"
+              value={form.internalSku || ""}
+              onChange={(e) => setForm((f) => ({ ...f, internalSku: e.target.value }))}
+              placeholder="JOY001"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGenerateInternalSku}
+              disabled={generatingInternalSku || !form.name.trim()}
+            >
+              {generatingInternalSku ? "..." : "Generar"}
+            </Button>
+          </div>
         </div>
 
         {/* Activo */}
@@ -572,6 +604,27 @@ export default function CreateProductPage() {
             }
             placeholder="ABC-001"
           />
+        </div>
+
+        {/* SKU Interno */}
+        <div className="space-y-2">
+          <Label htmlFor="internalSku-step">SKU Interno</Label>
+          <div className="flex gap-2">
+            <Input
+              id="internalSku-step"
+              value={form.internalSku || ""}
+              onChange={(e) => setForm((f) => ({ ...f, internalSku: e.target.value }))}
+              placeholder="JOY001"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGenerateInternalSku}
+              disabled={generatingInternalSku || !form.name.trim()}
+            >
+              {generatingInternalSku ? "..." : "Generar"}
+            </Button>
+          </div>
         </div>
 
         {/* Activo */}

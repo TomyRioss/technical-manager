@@ -16,6 +16,7 @@ const emptyProduct: Omit<Product, "id"> = {
   name: "",
   description: "",
   sku: "",
+  internalSku: "",
   costPrice: undefined,
   price: 0,
   stock: 0,
@@ -45,6 +46,7 @@ export default function EditProductPage() {
   const [saving, setSaving] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [generatingInternalSku, setGeneratingInternalSku] = useState(false);
 
   useEffect(() => {
     const product = getProduct(id);
@@ -56,6 +58,7 @@ export default function EditProductPage() {
       name: product.name,
       description: product.description || "",
       sku: product.sku,
+      internalSku: product.internalSku || "",
       costPrice: product.costPrice,
       price: product.price,
       stock: product.stock,
@@ -80,6 +83,24 @@ export default function EditProductPage() {
       return await uploadDirect(file, "products", fileName);
     } catch {
       return null;
+    }
+  }
+
+  async function handleGenerateInternalSku() {
+    if (!form.name.trim()) return;
+    setGeneratingInternalSku(true);
+    try {
+      const res = await fetch("/api/items/suggest-internal-sku", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storeId, name: form.name }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setForm((f) => ({ ...f, internalSku: data.internalSku }));
+      }
+    } finally {
+      setGeneratingInternalSku(false);
     }
   }
 
@@ -204,6 +225,27 @@ export default function EditProductPage() {
             }
             placeholder="ABC-001"
           />
+        </div>
+
+        {/* SKU Interno */}
+        <div className="space-y-2">
+          <Label htmlFor="internalSku">SKU Interno</Label>
+          <div className="flex gap-2">
+            <Input
+              id="internalSku"
+              value={form.internalSku || ""}
+              onChange={(e) => setForm((f) => ({ ...f, internalSku: e.target.value }))}
+              placeholder="JOY001"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGenerateInternalSku}
+              disabled={generatingInternalSku || !form.name.trim()}
+            >
+              {generatingInternalSku ? "..." : "Generar"}
+            </Button>
+          </div>
         </div>
 
         {/* Category */}

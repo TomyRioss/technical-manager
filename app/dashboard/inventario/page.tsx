@@ -95,7 +95,8 @@ export default function InventarioPage() {
     .filter(
       (p) =>
         p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.sku.toLowerCase().includes(search.toLowerCase())
+        p.sku.toLowerCase().includes(search.toLowerCase()) ||
+        (p.internalSku ?? "").toLowerCase().includes(search.toLowerCase())
     )
     .sort((a, b) => {
       if (!sortKey) return 0;
@@ -372,6 +373,7 @@ export default function InventarioPage() {
                 </TableHead>
                 <TableHead className="hidden md:table-cell w-36">Categoría</TableHead>
                 <TableHead className="hidden md:table-cell w-28">SKU</TableHead>
+                <TableHead className="hidden lg:table-cell w-28">SKU Interno</TableHead>
                 <TableHead className="text-right hidden md:table-cell w-32 cursor-pointer select-none" onClick={() => handleSort("costPrice")}>
                   <span className="inline-flex items-center justify-end w-full">Precio Compra<SortIcon column="costPrice" /></span>
                 </TableHead>
@@ -453,6 +455,9 @@ export default function InventarioPage() {
                         onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingField(null); }}
                       />
                     )}
+                  </TableCell>
+                  <TableCell className="text-neutral-500 hidden lg:table-cell">
+                    {product.internalSku || "—"}
                   </TableCell>
                   <TableCell className="text-right hidden md:table-cell">
                     {isReadOnly ? (product.costPrice != null ? `$${formatPrice(product.costPrice)}` : "—") : (

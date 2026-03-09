@@ -3,6 +3,7 @@ export interface Product {
   name: string;
   description?: string;
   sku: string;
+  internalSku?: string;
   costPrice?: number;
   price: number;
   stock: number;
