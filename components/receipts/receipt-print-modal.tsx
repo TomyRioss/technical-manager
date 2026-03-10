@@ -71,7 +71,7 @@ function TemplateA4({
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontWeight: "bold", fontSize: "18px", textTransform: "uppercase" }}>
-            Comprobante de pago
+            {receipt.receiptNumber.startsWith("PRE-") && receipt.status === "pendiente" ? "Resúmen de compra" : "Comprobante de pago"}
           </div>
           <div style={{ fontSize: "13px", marginTop: "4px" }}>N° {receipt.receiptNumber}</div>
           <div style={{ fontSize: "11px", color: "#555", marginTop: "4px" }}>
@@ -191,7 +191,7 @@ function TemplateTicket({
 
       <div style={{ margin: "4px 0", fontSize: "10px" }}>{SEP}</div>
 
-      <div style={{ fontSize: "10px" }}>Comprobante N° {receipt.receiptNumber}</div>
+      <div style={{ fontSize: "10px" }}>{receipt.receiptNumber.startsWith("PRE-") && receipt.status === "pendiente" ? "Presupuesto" : "Comprobante"} N° {receipt.receiptNumber}</div>
       <div style={{ fontSize: "10px" }}>Fecha: {date}  Hora: {time}</div>
 
       <div style={{ margin: "4px 0", fontSize: "10px" }}>{SEP}</div>

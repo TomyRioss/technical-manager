@@ -33,6 +33,7 @@ import { LuUpload, LuCircleAlert, LuDownload } from "react-icons/lu";
 import { parseFile, mergeInternalDuplicates, type ParsedItem, type ParseResult } from "@/lib/parse-import";
 import { useDashboard } from "@/contexts/dashboard-context";
 import { formatPrice } from "@/lib/utils";
+import { SupplierSelect } from "@/components/ui/supplier-select";
 
 const EXAMPLE_CSV = `CODIGO,DESCRIPCION,CTDAD,PRECIO,precioVenta,CATEGORIA
 SKU001,Producto ejemplo 1,10,1500,2500,Bebidas
@@ -59,6 +60,7 @@ export function BulkImportDialog({ open, onOpenChange }: BulkImportDialogProps) 
   const { storeId, branchId } = useDashboard();
 
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [supplierId, setSupplierId] = useState<string | null>(null);
   const [items, setItems] = useState<ParsedItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -228,7 +230,7 @@ export function BulkImportDialog({ open, onOpenChange }: BulkImportDialogProps) 
       const res = await fetch("/api/items/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storeId, branchId, items }),
+        body: JSON.stringify({ storeId, branchId, items, supplierId }),
       });
 
       if (!res.ok) {
@@ -249,6 +251,7 @@ export function BulkImportDialog({ open, onOpenChange }: BulkImportDialogProps) 
   const handleClose = useCallback(() => {
     setItems([]);
     setError(null);
+    setSupplierId(null);
     setActiveDuplicates(new Set());
     setInternalDuplicates(new Set());
     setEditableSkuIndices(new Set());
@@ -334,6 +337,15 @@ export function BulkImportDialog({ open, onOpenChange }: BulkImportDialogProps) 
                 <LuDownload className="mr-1 h-3 w-3" />
                 Descargar CSV de ejemplo
               </Button>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-neutral-700">Proveedor (opcional)</p>
+              <SupplierSelect
+                storeId={storeId}
+                value={supplierId}
+                onChange={setSupplierId}
+              />
             </div>
 
             <label

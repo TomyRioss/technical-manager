@@ -23,12 +23,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { LuPlus, LuPencil, LuTrash2, LuSearch, LuUpload, LuX, LuTag, LuChevronLeft, LuChevronRight, LuArrowUp, LuArrowDown, LuArrowUpDown, LuFilter } from "react-icons/lu";
+import { LuPlus, LuPencil, LuTrash2, LuSearch, LuUpload, LuX, LuTag, LuChevronLeft, LuChevronRight, LuArrowUp, LuArrowDown, LuArrowUpDown, LuFilter, LuHistory } from "react-icons/lu";
 import { Loader2 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { PriceInput } from "@/components/ui/price-input";
 import { useStorePlan } from "@/hooks/use-store-plan";
 import { BulkImportDialog } from "@/components/inventario/bulk-import-dialog";
+import { SupplierHistoryDialog } from "@/components/inventario/supplier-history-dialog";
 import { CategorySelect } from "@/components/ui/category-select";
 import {
   Popover,
@@ -37,6 +38,8 @@ import {
 } from "@/components/ui/popover";
 import type { Product } from "@/types/product";
 import type { Category } from "@/types/category";
+
+interface Supplier { id: string; name: string; }
 
 function getMissingData(product: Product): string[] {
   const missing: string[] = [];
@@ -55,11 +58,12 @@ export default function InventarioPage() {
   const { isReadOnly } = useStorePlan();
   const [search, setSearch] = useState("");
   const [editingStock, setEditingStock] = useState<{ id: string; value: string } | null>(null);
-  const [editingField, setEditingField] = useState<{ id: string; field: 'name' | 'sku' | 'costPrice' | 'price'; value: string } | null>(null);
+  const [editingField, setEditingField] = useState<{ id: string; field: 'name' | 'sku' | 'internalSku' | 'costPrice' | 'price'; value: string } | null>(null);
   const [editingPriceValue, setEditingPriceValue] = useState<number>(0);
   const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "pending">("all");
   const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
@@ -70,12 +74,21 @@ export default function InventarioPage() {
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+  const [addSupplierOpen, setAddSupplierOpen] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [savingSupplier, setSavingSupplier] = useState(false);
+  const [supplierError, setSupplierError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!storeId) return;
     fetch(`/api/categories?storeId=${storeId}`)
       .then((r) => r.ok ? r.json() : [])
       .then(setCategories);
+    fetch(`/api/suppliers?storeId=${storeId}`)
+      .then((r) => r.ok ? r.json() : [])
+      .then(setSuppliers);
   }, [storeId]);
 
   const availableCategories = Array.from(
@@ -83,6 +96,11 @@ export default function InventarioPage() {
   ).sort() as string[];
 
   const filtered = products
+    .filter((p) => {
+      if (selectedSupplierId === "none") return !p.supplierId;
+      if (selectedSupplierId) return p.supplierId === selectedSupplierId;
+      return true;
+    })
     .filter((p) => {
       if (statusFilter === "active") return p.active;
       if (statusFilter === "pending") return !p.active && hasMissingData(p);
@@ -206,8 +224,8 @@ export default function InventarioPage() {
       if (n === (product[field] ?? 0)) { setEditingField(null); return; }
       await updateProduct(product.id, { ...product, [field]: n });
     } else {
-      if (trimmed === product[field as 'name' | 'sku']) { setEditingField(null); return; }
-      await updateProduct(product.id, { ...product, [field]: trimmed });
+      if (trimmed === (product[field as 'name' | 'sku' | 'internalSku'] ?? '')) { setEditingField(null); return; }
+      await updateProduct(product.id, { ...product, [field]: trimmed || null });
     }
     setEditingField(null);
   }
@@ -248,9 +266,85 @@ export default function InventarioPage() {
     setCategoryPopoverOpen(false);
   }
 
+  const hasUnassigned = products.some((p) => !p.supplierId);
+
+  async function handleAddSupplier() {
+    if (!newSupplierName.trim() || !storeId) return;
+    setSavingSupplier(true);
+    setSupplierError(null);
+    try {
+      const res = await fetch("/api/suppliers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newSupplierName.trim(), storeId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setSupplierError(data.error || "Error al crear el proveedor"); return; }
+      setSuppliers((prev) => [...prev, data]);
+      setNewSupplierName("");
+      setAddSupplierOpen(false);
+    } catch {
+      setSupplierError("Error al crear el proveedor");
+    } finally {
+      setSavingSupplier(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <BulkImportDialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen} />
+      <SupplierHistoryDialog open={historyOpen} onOpenChange={setHistoryOpen} />
+
+      {/* Tabs por proveedor */}
+      <div className="flex flex-wrap items-center gap-1 border-b pb-2">
+        <button
+          onClick={() => { setSelectedSupplierId(null); setCurrentPage(1); }}
+          className={`px-3 py-1.5 text-sm rounded-md transition-colors ${selectedSupplierId === null ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100"}`}
+        >
+          Todos
+        </button>
+        {suppliers.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => { setSelectedSupplierId(s.id); setCurrentPage(1); }}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${selectedSupplierId === s.id ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100"}`}
+          >
+            {s.name}
+          </button>
+        ))}
+        {hasUnassigned && (
+          <button
+            onClick={() => { setSelectedSupplierId("none"); setCurrentPage(1); }}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${selectedSupplierId === "none" ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100"}`}
+          >
+            Sin proveedor
+          </button>
+        )}
+        <Popover open={addSupplierOpen} onOpenChange={(o) => { setAddSupplierOpen(o); if (!o) { setNewSupplierName(""); setSupplierError(null); } }}>
+          <PopoverTrigger asChild>
+            <button className="text-sm text-neutral-600 underline hover:text-neutral-900 transition-colors">
+              + Añadir proveedor
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3" align="end">
+            <p className="text-sm font-medium mb-2">Nuevo proveedor</p>
+            <div className="flex gap-2">
+              <Input
+                value={newSupplierName}
+                onChange={(e) => { setNewSupplierName(e.target.value); setSupplierError(null); }}
+                placeholder="Nombre"
+                className="h-8 text-sm"
+                onKeyDown={async (e) => { if (e.key === "Enter") await handleAddSupplier(); }}
+                autoFocus
+              />
+              <Button size="sm" disabled={savingSupplier || !newSupplierName.trim()} onClick={handleAddSupplier}>
+                {savingSupplier ? "..." : "Añadir"}
+              </Button>
+            </div>
+            {supplierError && <p className="text-xs text-red-600 mt-1.5">{supplierError}</p>}
+          </PopoverContent>
+        </Popover>
+      </div>
 
       {/* Search + Filtro + Botones */}
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -306,6 +400,10 @@ export default function InventarioPage() {
           </Popover>
         )}
         <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+          <Button size="sm" variant="outline" onClick={() => setHistoryOpen(true)}>
+            <LuHistory className="mr-1.5 h-4 w-4" />
+            <span className="hidden sm:inline">Historial</span>
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setBulkDialogOpen(true)} disabled={isReadOnly}>
             <LuUpload className="mr-1.5 h-4 w-4" />
             <span className="hidden sm:inline">Importar Inventario</span>
@@ -372,6 +470,7 @@ export default function InventarioPage() {
                   <span className="inline-flex items-center">Nombre<SortIcon column="name" /></span>
                 </TableHead>
                 <TableHead className="hidden md:table-cell w-36">Categoría</TableHead>
+                <TableHead className="hidden lg:table-cell w-36">Proveedor</TableHead>
                 <TableHead className="hidden md:table-cell w-28">SKU</TableHead>
                 <TableHead className="hidden lg:table-cell w-28">SKU Interno</TableHead>
                 <TableHead className="text-right hidden md:table-cell w-32 cursor-pointer select-none" onClick={() => handleSort("costPrice")}>
@@ -444,6 +543,20 @@ export default function InventarioPage() {
                       </select>
                     )}
                   </TableCell>
+                  <TableCell className="text-neutral-500 hidden lg:table-cell">
+                    {isReadOnly ? (product.supplierName || "—") : (
+                      <select
+                        value={product.supplierId || ""}
+                        onChange={(e) => updateProduct(product.id, { ...product, supplierId: e.target.value || undefined })}
+                        className="bg-neutral-100 border border-neutral-200 rounded px-1.5 py-0.5 hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm w-full"
+                      >
+                        <option value="">Sin proveedor</option>
+                        {suppliers.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </TableCell>
                   <TableCell className="text-neutral-500 hidden md:table-cell">
                     {isReadOnly ? (product.sku || "—") : (
                       <input
@@ -457,7 +570,17 @@ export default function InventarioPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-neutral-500 hidden lg:table-cell">
-                    {product.internalSku || "—"}
+                    {isReadOnly ? (product.internalSku || "—") : (
+                      <input
+                        className="bg-neutral-100 border border-neutral-200 rounded px-1.5 hover:border-neutral-400 focus:border-neutral-500 focus:bg-white focus:outline-none text-sm text-neutral-500 w-full"
+                        value={editingField?.id === product.id && editingField.field === 'internalSku' ? editingField.value : (product.internalSku ?? '')}
+                        placeholder="—"
+                        onFocus={() => setEditingField({ id: product.id, field: 'internalSku', value: product.internalSku ?? '' })}
+                        onChange={(e) => setEditingField({ id: product.id, field: 'internalSku', value: e.target.value })}
+                        onBlur={() => handleFieldSave(product)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingField(null); }}
+                      />
+                    )}
                   </TableCell>
                   <TableCell className="text-right hidden md:table-cell">
                     {isReadOnly ? (product.costPrice != null ? `$${formatPrice(product.costPrice)}` : "—") : (

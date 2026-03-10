@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CategorySelect } from "@/components/ui/category-select";
+import { SupplierSelect } from "@/components/ui/supplier-select";
 import { Textarea } from "@/components/ui/textarea";
 import { LuArrowLeft, LuUpload } from "react-icons/lu";
 import Link from "next/link";
@@ -22,6 +23,7 @@ const emptyProduct: Omit<Product, "id"> = {
   stock: 0,
   active: true,
   categoryId: undefined,
+  supplierId: undefined,
 };
 
 function formatNumber(value: number | undefined): string {
@@ -64,6 +66,7 @@ export default function EditProductPage() {
       stock: product.stock,
       active: product.active,
       categoryId: product.categoryId,
+      supplierId: product.supplierId,
     });
     setImagePreview(product.imageUrl || null);
   }, [id, getProduct]);
@@ -147,7 +150,7 @@ export default function EditProductPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-2xl mx-auto">
       <div className="flex items-center gap-3">
         <Link href="/dashboard/inventario">
           <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -214,48 +217,56 @@ export default function EditProductPage() {
           />
         </div>
 
-        {/* SKU */}
-        <div className="space-y-2">
-          <Label htmlFor="sku">SKU / Codigo</Label>
-          <Input
-            id="sku"
-            value={form.sku}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, sku: e.target.value }))
-            }
-            placeholder="ABC-001"
-          />
-        </div>
-
-        {/* SKU Interno */}
-        <div className="space-y-2">
-          <Label htmlFor="internalSku">SKU Interno</Label>
-          <div className="flex gap-2">
+        {/* SKU / SKU Interno */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="sku">SKU / Codigo</Label>
             <Input
-              id="internalSku"
-              value={form.internalSku || ""}
-              onChange={(e) => setForm((f) => ({ ...f, internalSku: e.target.value }))}
-              placeholder="JOY001"
+              id="sku"
+              value={form.sku}
+              onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
+              placeholder="ABC-001"
             />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleGenerateInternalSku}
-              disabled={generatingInternalSku || !form.name.trim()}
-            >
-              {generatingInternalSku ? "..." : "Generar"}
-            </Button>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="internalSku">SKU Interno</Label>
+            <div className="flex gap-2">
+              <Input
+                id="internalSku"
+                value={form.internalSku || ""}
+                onChange={(e) => setForm((f) => ({ ...f, internalSku: e.target.value }))}
+                placeholder="JOY001"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGenerateInternalSku}
+                disabled={generatingInternalSku || !form.name.trim()}
+              >
+                {generatingInternalSku ? "..." : "Generar"}
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Category */}
-        <div className="space-y-2">
-          <Label>Categoria</Label>
-          <CategorySelect
-            storeId={storeId}
-            value={form.categoryId || null}
-            onChange={(categoryId) => setForm((f) => ({ ...f, categoryId: categoryId || undefined }))}
-          />
+        {/* Categoría / Proveedor */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Categoría</Label>
+            <CategorySelect
+              storeId={storeId}
+              value={form.categoryId || null}
+              onChange={(categoryId) => setForm((f) => ({ ...f, categoryId: categoryId || undefined }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Proveedor</Label>
+            <SupplierSelect
+              storeId={storeId}
+              value={form.supplierId || null}
+              onChange={(supplierId) => setForm((f) => ({ ...f, supplierId: supplierId || undefined }))}
+            />
+          </div>
         </div>
 
         {/* Cost Price + Sale Price */}
@@ -297,20 +308,18 @@ export default function EditProductPage() {
         {/* Stock */}
         <div className="space-y-2">
           <Label htmlFor="stock">Stock</Label>
-          <Input
-            id="stock"
-            type="number"
-            min={0}
-            value={form.stock || ""}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                stock: parseInt(e.target.value) || 0,
-              }))
-            }
-            placeholder="0"
-            className="max-w-32"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              id="stock"
+              type="number"
+              min={0}
+              value={form.stock || ""}
+              onChange={(e) => setForm((f) => ({ ...f, stock: parseInt(e.target.value) || 0 }))}
+              placeholder="0"
+              className="w-32"
+            />
+            <span className="text-sm text-neutral-500">unidades</span>
+          </div>
         </div>
 
         {/* Active */}

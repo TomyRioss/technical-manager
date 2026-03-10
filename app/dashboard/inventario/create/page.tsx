@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PriceInput } from "@/components/ui/price-input";
 import { CategorySelect } from "@/components/ui/category-select";
+import { SupplierSelect } from "@/components/ui/supplier-select";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -28,6 +29,7 @@ const emptyProduct: Omit<Product, "id"> = {
   stock: 0,
   active: true,
   categoryId: undefined,
+  supplierId: undefined,
 };
 
 export default function CreateProductPage() {
@@ -250,6 +252,18 @@ export default function CreateProductPage() {
           </div>
         </div>
 
+        {/* Proveedor */}
+        <div className="space-y-2">
+          <Label>Proveedor (opcional)</Label>
+          <div className="max-w-xs">
+            <SupplierSelect
+              storeId={storeId}
+              value={form.supplierId || null}
+              onChange={(supplierId) => setForm((f) => ({ ...f, supplierId: supplierId || undefined }))}
+            />
+          </div>
+        </div>
+
         {/* Imagen */}
         <div className="space-y-2">
           <Label>Imagen</Label>
@@ -267,35 +281,35 @@ export default function CreateProductPage() {
           )}
         </div>
 
-        {/* SKU */}
-        <div className="space-y-2">
-          <Label htmlFor="sku">SKU / Código</Label>
-          <Input
-            id="sku"
-            value={form.sku}
-            onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
-            placeholder="ABC-001"
-          />
-        </div>
-
-        {/* SKU Interno */}
-        <div className="space-y-2">
-          <Label htmlFor="internalSku">SKU Interno</Label>
-          <div className="flex gap-2">
+        {/* SKU / SKU Interno */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="sku">SKU / Código</Label>
             <Input
-              id="internalSku"
-              value={form.internalSku || ""}
-              onChange={(e) => setForm((f) => ({ ...f, internalSku: e.target.value }))}
-              placeholder="JOY001"
+              id="sku"
+              value={form.sku}
+              onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
+              placeholder="ABC-001"
             />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleGenerateInternalSku}
-              disabled={generatingInternalSku || !form.name.trim()}
-            >
-              {generatingInternalSku ? "..." : "Generar"}
-            </Button>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="internalSku">SKU Interno</Label>
+            <div className="flex gap-2">
+              <Input
+                id="internalSku"
+                value={form.internalSku || ""}
+                onChange={(e) => setForm((f) => ({ ...f, internalSku: e.target.value }))}
+                placeholder="JOY001"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGenerateInternalSku}
+                disabled={generatingInternalSku || !form.name.trim()}
+              >
+                {generatingInternalSku ? "..." : "Generar"}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -593,37 +607,47 @@ export default function CreateProductPage() {
           )}
         </div>
 
-        {/* SKU */}
-        <div className="space-y-2">
-          <Label htmlFor="sku">SKU / Código</Label>
-          <Input
-            id="sku"
-            value={form.sku}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, sku: e.target.value }))
-            }
-            placeholder="ABC-001"
-          />
+        {/* SKU / SKU Interno */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="sku-step">SKU / Código</Label>
+            <Input
+              id="sku-step"
+              value={form.sku}
+              onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
+              placeholder="ABC-001"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="internalSku-step">SKU Interno</Label>
+            <div className="flex gap-2">
+              <Input
+                id="internalSku-step"
+                value={form.internalSku || ""}
+                onChange={(e) => setForm((f) => ({ ...f, internalSku: e.target.value }))}
+                placeholder="JOY001"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGenerateInternalSku}
+                disabled={generatingInternalSku || !form.name.trim()}
+              >
+                {generatingInternalSku ? "..." : "Generar"}
+              </Button>
+            </div>
+          </div>
         </div>
 
-        {/* SKU Interno */}
+        {/* Proveedor */}
         <div className="space-y-2">
-          <Label htmlFor="internalSku-step">SKU Interno</Label>
-          <div className="flex gap-2">
-            <Input
-              id="internalSku-step"
-              value={form.internalSku || ""}
-              onChange={(e) => setForm((f) => ({ ...f, internalSku: e.target.value }))}
-              placeholder="JOY001"
+          <Label>Proveedor (opcional)</Label>
+          <div className="max-w-xs">
+            <SupplierSelect
+              storeId={storeId}
+              value={form.supplierId || null}
+              onChange={(supplierId) => setForm((f) => ({ ...f, supplierId: supplierId || undefined }))}
             />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleGenerateInternalSku}
-              disabled={generatingInternalSku || !form.name.trim()}
-            >
-              {generatingInternalSku ? "..." : "Generar"}
-            </Button>
           </div>
         </div>
 

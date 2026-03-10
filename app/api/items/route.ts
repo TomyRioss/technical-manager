@@ -29,7 +29,10 @@ export async function GET(req: NextRequest) {
     const items = await prisma.item.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      include: { category: { select: { id: true, name: true } } } as any,
+      include: {
+        category: { select: { id: true, name: true } },
+        supplier: { select: { id: true, name: true } },
+      } as any,
     });
 
     return NextResponse.json(items);
@@ -46,7 +49,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, description, sku, internalSku, costPrice, salePrice, stock, isActive, storeId, branchId, categoryId } = body;
+  const { name, description, sku, internalSku, costPrice, salePrice, stock, isActive, storeId, branchId, categoryId, supplierId } = body;
 
   if (!name || !storeId || !branchId) {
     return NextResponse.json({ error: "name, storeId y branchId requeridos" }, { status: 400 });
@@ -60,7 +63,7 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         description: description || null,
-        sku: sku || "",
+        sku: sku || `SKU-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
         internalSku: internalSku || null,
         costPrice: costPrice || null,
         salePrice: salePrice || 0,
@@ -69,9 +72,19 @@ export async function POST(req: NextRequest) {
         storeId,
         branchId,
         categoryId: categoryId || null,
+        supplierId: supplierId || null,
       } as any,
-      include: { category: { select: { id: true, name: true } } } as any,
+      include: {
+        category: { select: { id: true, name: true } },
+        supplier: { select: { id: true, name: true } },
+      } as any,
     });
+
+    if (supplierId) {
+      await (prisma as any).supplierImportLog.create({
+        data: { type: "single", itemCount: 1, notes: name, storeId, supplierId },
+      });
+    }
 
     return NextResponse.json(item, { status: 201 });
   } catch (error: unknown) {

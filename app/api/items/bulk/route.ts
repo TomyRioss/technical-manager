@@ -15,7 +15,7 @@ interface BulkItem {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { storeId, branchId, items } = body as { storeId: string; branchId: string; items: BulkItem[] };
+    const { storeId, branchId, items, supplierId } = body as { storeId: string; branchId: string; items: BulkItem[]; supplierId?: string };
 
     if (!storeId || !branchId) {
       return NextResponse.json({ error: "storeId y branchId son requeridos" }, { status: 400 });
@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
             isActive: item.isActive,
             isDeleted: false,
             categoryId,
+            supplierId: supplierId || null,
           },
           create: {
             storeId,
@@ -109,10 +110,17 @@ export async function POST(request: NextRequest) {
             salePrice: item.salePrice ?? 0,
             isActive: item.isActive,
             categoryId,
+            supplierId: supplierId || null,
           },
         });
       })
     );
+
+    if (supplierId) {
+      await (prisma as any).supplierImportLog.create({
+        data: { type: "bulk", itemCount: createdItems.length, storeId, supplierId },
+      });
+    }
 
     return NextResponse.json({ created: createdItems.length, items: createdItems });
   } catch (error) {

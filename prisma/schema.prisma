@@ -91,6 +91,8 @@ model Store {
   deviceBrands  DeviceBrand[]
   categories    Category[]
   branches      Branch[]
+  suppliers     Supplier[]
+  supplierImportLogs SupplierImportLog[]
 
   @@map("stores")
 }
@@ -153,6 +155,9 @@ model Item {
 
   categoryId String?   @map("category_id") @db.Uuid
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  supplierId String?   @map("supplier_id") @db.Uuid
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
   receiptItems ReceiptItem[]
 
@@ -458,6 +463,28 @@ model Category {
 }
 
 // ============================================================
+// SUPPLIER (Proveedor)
+// ============================================================
+
+model Supplier {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  storeId String @map("store_id") @db.Uuid
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  items      Item[]
+  importLogs SupplierImportLog[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("suppliers")
+}
+
+// ============================================================
 // DEVICE BRAND (Marca de Dispositivo)
 // ============================================================
 
@@ -560,4 +587,26 @@ model UserBranch {
   @@index([userId])
   @@index([branchId])
   @@map("user_branches")
+}
+
+// ============================================================
+// SUPPLIER IMPORT LOG (Historial de Importaciones)
+// ============================================================
+
+model SupplierImportLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type      String   // "single" | "bulk"
+  itemCount Int      @map("item_count")
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  storeId String @map("store_id") @db.Uuid
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  supplierId String   @map("supplier_id") @db.Uuid
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([supplierId])
+  @@map("supplier_import_logs")
 }

@@ -76,6 +76,7 @@ interface DashboardProviderProps {
 
 function mapItemToProduct(i: Record<string, unknown>): Product {
   const cat = i.category as { id: string; name: string } | null;
+  const sup = i.supplier as { id: string; name: string } | null;
   return {
     id: i.id as string,
     name: i.name as string,
@@ -88,6 +89,8 @@ function mapItemToProduct(i: Record<string, unknown>): Product {
     imageUrl: (i.imageUrl as string) || undefined,
     categoryId: cat?.id || undefined,
     categoryName: cat?.name || undefined,
+    supplierId: sup?.id || undefined,
+    supplierName: sup?.name || undefined,
     createdAt: (i.createdAt as string) || undefined,
     internalSku: (i.internalSku as string) || undefined,
   };
@@ -154,11 +157,13 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
         storeId,
         branchId,
         categoryId: data.categoryId || null,
+        supplierId: data.supplierId || null,
       }),
     });
     if (!res.ok) return null;
     const item = await res.json();
     const cat = item.category as { id: string; name: string } | null;
+    const sup = item.supplier as { id: string; name: string } | null;
     const newProduct: Product = {
       id: item.id,
       name: item.name,
@@ -170,6 +175,8 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
       imageUrl: data.imageUrl,
       categoryId: cat?.id || undefined,
       categoryName: cat?.name || undefined,
+      supplierId: sup?.id || undefined,
+      supplierName: sup?.name || undefined,
     };
     mutate(productsKey, (prev: Record<string, unknown>[] | undefined) => [item, ...(prev ?? [])], { revalidate: false });
     return newProduct.id;

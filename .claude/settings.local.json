@@ -36,7 +36,9 @@
       "Bash(head:*)",
       "Bash(find:*)",
       "Bash(ls:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "mcp__desktop-commander__list_directory",
+      "mcp__desktop-commander__read_file"
     ]
   }
 }

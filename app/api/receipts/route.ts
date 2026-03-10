@@ -91,17 +91,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Método de pago inválido" }, { status: 400 });
   }
 
+  const isQuote = body.isQuote === true;
+
   try {
     // Generate receipt number
-    const count = await prisma.receipt.count({ where: { storeId } });
-    const receiptNumber = `REC-${String(count + 1).padStart(3, "0")}`;
+    let receiptNumber: string;
+    if (isQuote) {
+      const preReceipts = await prisma.receipt.findMany({
+        where: { storeId, receiptNumber: { startsWith: "PRE-" } },
+        select: { receiptNumber: true },
+      });
+      const maxPre = preReceipts.reduce((max, r) => {
+        const num = parseInt(r.receiptNumber.replace("PRE-", "")) || 0;
+        return Math.max(max, num);
+      }, 0);
+      receiptNumber = `PRE-${String(maxPre + 1).padStart(3, "0")}`;
+    } else {
+      const recCount = await prisma.receipt.count({
+        where: { storeId, receiptNumber: { not: { startsWith: "PRE-" } } },
+      });
+      receiptNumber = `REC-${String(recCount + 1).padStart(3, "0")}`;
+    }
 
     const receipt = await prisma.$transaction(async (tx) => {
       // Create receipt with items
       const created = await tx.receipt.create({
         data: {
           receiptNumber,
-          status: "COMPLETED",
+          status: isQuote ? "PENDING" : "COMPLETED",
           paymentMethod: dbPaymentMethod,
           subtotal,
           commissionRate: commissionRate || 0,
@@ -123,12 +140,14 @@ export async function POST(req: NextRequest) {
         include: { items: { include: { item: true } } },
       });
 
-      // Discount stock
-      for (const i of items) {
-        await tx.item.update({
-          where: { id: i.productId },
-          data: { stock: { decrement: i.quantity } },
-        });
+      // Discount stock only for real receipts (not quotes)
+      if (!isQuote) {
+        for (const i of items) {
+          await tx.item.update({
+            where: { id: i.productId },
+            data: { stock: { decrement: i.quantity } },
+          });
+        }
       }
 
       return created;

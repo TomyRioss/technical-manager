@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useDashboard } from "@/contexts/dashboard-context";
 import type { ReceiptItem } from "@/types/receipt";
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,9 @@ function newItem(): ReceiptItem {
 
 export default function CreateReceiptPage() {
   const router = useRouter();
-  const { addReceipt, products, commissions, updateCommissions, getCommissionRate } = useDashboard();
+  const searchParams = useSearchParams();
+  const isQuote = searchParams.get("type") === "presupuesto";
+  const { addReceipt, products, commissions, updateCommissions, getCommissionRate, storeId, branchId, userId } = useDashboard();
   const [formMode, setFormMode] = useState<"steps" | "complete">("complete");
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(emptyForm);
@@ -142,7 +144,7 @@ export default function CreateReceiptPage() {
       return;
     }
 
-    if (hasStockIssues && !skipStockWarning) {
+    if (!isQuote && hasStockIssues && !skipStockWarning) {
       setShowStockWarning(true);
       return;
     }
@@ -156,6 +158,35 @@ export default function CreateReceiptPage() {
     const comm = sub * (form.commissionRate / 100);
 
     setSaving(true);
+
+    if (isQuote) {
+      const res = await fetch("/api/receipts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storeId,
+          branchId,
+          userId,
+          paymentMethod: form.paymentMethod,
+          subtotal: sub,
+          commissionRate: form.commissionRate,
+          commissionAmount: comm,
+          total: sub - comm,
+          notes: form.notes,
+          items: validItems,
+          isQuote: true,
+        }),
+      });
+      setSaving(false);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Error al crear el presupuesto.");
+        return;
+      }
+      router.push("/dashboard/recibos?tab=presupuestos");
+      return;
+    }
+
     await addReceipt({
       status: "pendiente",
       paymentMethod: form.paymentMethod,
@@ -271,7 +302,7 @@ export default function CreateReceiptPage() {
                 <LuArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <h1 className="text-lg font-semibold text-neutral-900">Nuevo recibo</h1>
+            <h1 className="text-lg font-semibold text-neutral-900">{isQuote ? "Nuevo Presupuesto" : "Nuevo recibo"}</h1>
             <div className="ml-auto"><FormModeSwitch /></div>
           </div>
           <div className="flex flex-col items-center justify-center min-h-[40vh] max-w-xl mx-auto px-4">
@@ -321,7 +352,7 @@ export default function CreateReceiptPage() {
                 <LuArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <h1 className="text-lg font-semibold text-neutral-900">Nuevo recibo</h1>
+            <h1 className="text-lg font-semibold text-neutral-900">{isQuote ? "Nuevo Presupuesto" : "Nuevo recibo"}</h1>
             <div className="ml-auto"><FormModeSwitch /></div>
           </div>
           <div className="max-w-2xl mx-auto space-y-4">
@@ -494,7 +525,7 @@ export default function CreateReceiptPage() {
               <LuArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <h1 className="text-lg font-semibold text-neutral-900">Nuevo recibo</h1>
+          <h1 className="text-lg font-semibold text-neutral-900">{isQuote ? "Nuevo Presupuesto" : "Nuevo recibo"}</h1>
           <div className="ml-auto"><FormModeSwitch /></div>
         </div>
         <div className="max-w-2xl mx-auto space-y-4">
@@ -526,7 +557,7 @@ export default function CreateReceiptPage() {
               <ChevronLeft className="h-4 w-4" /> Volver
             </Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Guardando..." : "Crear recibo"}
+              {saving ? "Guardando..." : isQuote ? "Crear presupuesto" : "Crear recibo"}
             </Button>
           </div>
           <div className="flex justify-center">
@@ -548,7 +579,7 @@ export default function CreateReceiptPage() {
           </Button>
         </Link>
         <h1 className="text-lg font-semibold text-neutral-900">
-          Nuevo recibo
+          {isQuote ? "Nuevo Presupuesto" : "Nuevo recibo"}
         </h1>
         <div className="ml-auto"><FormModeSwitch /></div>
       </div>
@@ -736,7 +767,7 @@ export default function CreateReceiptPage() {
         {/* Actions */}
         <div className="flex items-center gap-3 pt-2">
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Guardando..." : "Crear recibo"}
+            {saving ? "Guardando..." : isQuote ? "Crear presupuesto" : "Crear recibo"}
           </Button>
           <Link href="/dashboard/recibos">
             <Button variant="outline">Cancelar</Button>
