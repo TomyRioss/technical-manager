@@ -197,6 +197,7 @@ export function DashboardProvider({ children, storeId, storeName, storeSlug, sto
         stock: data.stock,
         isActive: data.active,
         categoryId: data.categoryId || null,
+        supplierId: data.supplierId || null,
       }),
     });
     if (!res.ok) return;

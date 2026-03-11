@@ -100,8 +100,15 @@ export async function POST(req: NextRequest) {
     );
 
     // Generate receipt number
-    const count = await prisma.receipt.count({ where: { branchId } });
-    const receiptNumber = `REC-${String(count + 1).padStart(3, "0")}`;
+    const recReceipts = await prisma.receipt.findMany({
+      where: { storeId, receiptNumber: { startsWith: "REC-" } },
+      select: { receiptNumber: true },
+    });
+    const maxRec = recReceipts.reduce((max, r) => {
+      const num = parseInt(r.receiptNumber.replace("REC-", "")) || 0;
+      return Math.max(max, num);
+    }, 0);
+    const receiptNumber = `REC-${String(maxRec + 1).padStart(3, "0")}`;
 
     // Create receipt (PENDING, no stock deduction)
     const receipt = await prisma.receipt.create({

@@ -10,7 +10,7 @@ export async function GET(
   try {
     const item = await prisma.item.findFirst({
       where: { id, isActive: true },
-      include: { category: { select: { id: true, name: true } } } as any,
+      include: { category: { select: { id: true, name: true } }, supplier: { select: { id: true, name: true } } } as any,
     });
     if (!item) {
       return NextResponse.json({ error: "Item no encontrado" }, { status: 404 });
@@ -41,7 +41,7 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { name, description, sku, internalSku, costPrice, salePrice, stock, isActive, categoryId } = body;
+    const { name, description, sku, internalSku, costPrice, salePrice, stock, isActive, categoryId, supplierId } = body;
 
     const item = await prisma.item.update({
       where: { id },
@@ -55,8 +55,9 @@ export async function PUT(
         ...(stock !== undefined && { stock }),
         ...(isActive !== undefined && { isActive }),
         ...(categoryId !== undefined && { categoryId: categoryId || null }),
+        ...(supplierId !== undefined && { supplierId: supplierId || null }),
       } as any,
-      include: { category: { select: { id: true, name: true } } } as any,
+      include: { category: { select: { id: true, name: true } }, supplier: { select: { id: true, name: true } } } as any,
     });
 
     return NextResponse.json(item);
