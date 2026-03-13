@@ -38,7 +38,8 @@
       "Bash(ls:*)",
       "Bash(cd:*)",
       "mcp__desktop-commander__list_directory",
-      "mcp__desktop-commander__read_file"
+      "mcp__desktop-commander__read_file",
+      "Bash(find /c/Users/Pc/Desktop/technical-manager/types -name \"*.ts\" | xargs grep -l \"Receipt\" 2>/dev/null)"
     ]
   }
 }

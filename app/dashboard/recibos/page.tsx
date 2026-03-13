@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { LuPlus, LuTrash2, LuSearch, LuEye, LuLoader, LuArchiveX, LuPrinter, LuChevronLeft, LuCheck, LuX } from "react-icons/lu";
+import { LuPlus, LuTrash2, LuSearch, LuEye, LuLoader, LuArchiveX, LuPrinter, LuChevronLeft, LuCheck, LuX, LuPencil } from "react-icons/lu";
 import { ReceiptImportDialog } from "@/components/receipts/receipt-import-dialog";
 import { ReceiptPrintModal } from "@/components/receipts/receipt-print-modal";
 import {
@@ -413,6 +413,16 @@ export default function RecibosPage() {
                       <TableCell>
                         <TooltipProvider delayDuration={300}>
                           <div className="flex items-center gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Link href={`/dashboard/recibos/${receipt.id}/edit`}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <LuPencil className="h-4 w-4" />
+                                  </Button>
+                                </Link>
+                              </TooltipTrigger>
+                              <TooltipContent>Ver / Editar</TooltipContent>
+                            </Tooltip>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPrintingReceipt(receipt)}>

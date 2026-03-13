@@ -3,6 +3,13 @@ import { prisma } from "@/lib/db";
 import type { PaymentMethod, ReceiptStatus } from "@/lib/generated/prisma";
 import { checkReadOnly } from "@/lib/plan-guard";
 
+const paymentMethodMap: Record<string, PaymentMethod> = {
+  "Efectivo": "CASH",
+  "Transferencia Debito": "DEBIT_TRANSFER",
+  "Transferencia Credito": "CREDIT_TRANSFER",
+  "Otro": "OTHER",
+};
+
 const paymentMethodReverseMap: Record<PaymentMethod, string> = {
   CASH: "Efectivo",
   DEBIT_TRANSFER: "Transferencia Debito",
@@ -104,6 +111,77 @@ export async function DELETE(
       if (code === "P2025") return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 });
     }
     return NextResponse.json({ error: "Error al eliminar el recibo" }, { status: 500 });
+  }
+}
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+
+  try {
+    const existing = await prisma.receipt.findUnique({
+      where: { id },
+      select: { storeId: true, status: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Presupuesto no encontrado" }, { status: 404 });
+    }
+    if (existing.status !== "PENDING") {
+      return NextResponse.json({ error: "Solo se pueden editar presupuestos pendientes" }, { status: 400 });
+    }
+
+    const guard = await checkReadOnly(existing.storeId);
+    if (guard) return guard;
+
+    const body = await req.json();
+    const { paymentMethod, commissionRate, notes, items } = body as {
+      paymentMethod: string;
+      commissionRate: number;
+      notes: string;
+      items: { id: string; quantity: number; unitPrice: number }[];
+    };
+
+    const pmKey = paymentMethodMap[paymentMethod] ?? "CASH";
+    const rate = Number(commissionRate) || 0;
+    const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+    const commissionAmount = subtotal * rate / 100;
+    const total = subtotal - commissionAmount;
+
+    await prisma.$transaction(async (tx) => {
+      for (const item of items) {
+        await tx.receiptItem.update({
+          where: { id: item.id },
+          data: {
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            lineTotal: item.quantity * item.unitPrice,
+          },
+        });
+      }
+      await tx.receipt.update({
+        where: { id },
+        data: {
+          paymentMethod: pmKey,
+          commissionRate: rate,
+          commissionAmount,
+          subtotal,
+          total,
+          notes: notes || null,
+        },
+      });
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error: unknown) {
+    console.error("PUT /api/receipts/[id] error:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code: string }).code;
+      if (code === "P2025") return NextResponse.json({ error: "Ítem no encontrado" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Error al actualizar el presupuesto" }, { status: 500 });
   }
 }
 
